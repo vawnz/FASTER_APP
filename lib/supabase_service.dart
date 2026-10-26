@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'main.dart' show StudentProfile, kStudentPrograms;
 import 'modules/admin/models/distress_signal.dart';
@@ -19,8 +20,13 @@ class AuthResult {
 }
 
 class SupabaseService {
-  static const String supabaseUrl = 'https://ofdxpepncrzrfzarvjtb.supabase.co';
-  static const String supabaseKey = 'sb_secret_DQYkDCHOea58bhjNra7k7w_hL53cKkz';
+  static String get supabaseUrl =>
+      dotenv.env['SUPABASE_URL'] ??
+      const String.fromEnvironment('SUPABASE_URL', defaultValue: '');
+
+  static String get supabaseKey =>
+      dotenv.env['SUPABASE_KEY'] ??
+      const String.fromEnvironment('SUPABASE_KEY', defaultValue: '');
 
   static bool get isInitialized {
     try {
@@ -37,14 +43,29 @@ class SupabaseService {
     return null;
   }
 
-  /// Initialize Supabase with the project URL and API key
+  /// Initialize Supabase with the project URL and API key loaded from .env
   static Future<void> initialize() async {
     try {
-      await Supabase.initialize(
-        url: supabaseUrl,
-        publishableKey: supabaseKey,
-      );
-      debugPrint('Supabase successfully initialized for $supabaseUrl');
+      try {
+        await dotenv.load(fileName: ".env");
+      } catch (_) {
+        try {
+          await dotenv.load(fileName: ".env.example");
+        } catch (_) {}
+      }
+
+      final url = supabaseUrl;
+      final key = supabaseKey;
+
+      if (url.isNotEmpty && key.isNotEmpty) {
+        await Supabase.initialize(
+          url: url,
+          publishableKey: key,
+        );
+        debugPrint('Supabase successfully initialized for $url');
+      } else {
+        debugPrint('Supabase initialization notice: SUPABASE_URL or SUPABASE_KEY not found in .env');
+      }
     } catch (e) {
       debugPrint('Supabase initialization warning: $e');
     }
@@ -275,15 +296,41 @@ class SupabaseService {
 
       Map<String, dynamic> inserted;
       try {
+        // Attempt insert with stud_status first (if the column is supported by the database)
+        final fullData = Map<String, dynamic>.from(dbData)..['stud_status'] = 'ACTIVE';
         inserted = await cli
             .from('fast_stud_info')
-            .insert(dbData)
+            .insert(fullData)
             .select()
             .single();
       } catch (insertErr) {
         final errStr = insertErr.toString();
-        // Fallback gracefully if remote database table does not yet have user_role column
-        if (errStr.contains('user_role') || errStr.contains('PGRST204')) {
+        // If PostgREST schema cache does not have stud_status yet (PGRST204), fallback to dbData
+        if (errStr.contains('stud_status') && errStr.contains('PGRST204')) {
+          try {
+            inserted = await cli
+                .from('fast_stud_info')
+                .insert(dbData)
+                .select()
+                .single();
+          } catch (innerErr) {
+            final innerStr = innerErr.toString();
+            if (innerStr.contains('user_role') || innerStr.contains('PGRST204')) {
+              final fallbackData = Map<String, dynamic>.from(dbData)..remove('user_role');
+              inserted = await cli
+                  .from('fast_stud_info')
+                  .insert(fallbackData)
+                  .select()
+                  .single();
+            } else if (innerStr.contains('stud_status') || innerStr.contains('42703')) {
+              return const AuthResult.failure(
+                'Database error (42703): fast_stud_info trigger requires the stud_status column. Please run the SQL migration in Supabase SQL editor.'
+              );
+            } else {
+              rethrow;
+            }
+          }
+        } else if (errStr.contains('user_role') || errStr.contains('PGRST204')) {
           final fallbackData = Map<String, dynamic>.from(dbData)..remove('user_role');
           inserted = await cli
               .from('fast_stud_info')
@@ -291,21 +338,9 @@ class SupabaseService {
               .select()
               .single();
         } else if (errStr.contains('stud_status') || errStr.contains('42703')) {
-          debugPrint('Notice: Remote DB trigger error on fast_stud_record.stud_status: $insertErr');
-          // Gracefully create active session profile so user is not blocked by remote DB trigger
-          final student = StudentProfile(
-            studentId: studentId,
-            firstName: firstName,
-            middleInitial: miFormatted,
-            lastName: lastName,
-            program: program,
-            yearLevel: yearLevel,
-            section: section,
-            username: username,
-            phoneNumber: phoneNumber,
-            userRole: 'STUDENT',
+          return const AuthResult.failure(
+            'Database error (42703): fast_stud_info trigger requires the stud_status column. Please run the SQL migration in Supabase SQL editor.'
           );
-          return AuthResult.success(student);
         } else {
           rethrow;
         }
@@ -376,7 +411,7 @@ class SupabaseService {
         'phone': phoneNumber,
       });
 
-      await cli.from('fast_stud_record').insert({
+      final recordData = {
         'stud_id': idNum ?? int.tryParse(studentId) ?? 202601234,
         'stud_name': studentName.length > 90 ? studentName.substring(0, 90) : studentName,
         'stud_program': programToCode(program),
@@ -384,10 +419,29 @@ class SupabaseService {
         'stud_section': sectionToDb(section),
         'user_role': meta,
         'stud_status': 'ACTIVE DISTRESS',
-      });
-      debugPrint('fast_stud_record active distress inserted for $studentId');
+      };
+
+      try {
+        await cli.from('fast_stud_record').upsert(recordData, onConflict: 'stud_id');
+        debugPrint('fast_stud_record active distress upserted for $studentId');
+      } catch (_) {
+        try {
+          await cli
+              .from('fast_stud_record')
+              .update({
+                'stud_status': 'ACTIVE DISTRESS',
+                'user_role': meta,
+                'stud_name': recordData['stud_name'],
+                'stud_reqtime': DateTime.now().toIso8601String(),
+              })
+              .eq('stud_id', recordData['stud_id']!);
+          debugPrint('fast_stud_record active distress updated for $studentId');
+        } catch (inner) {
+          debugPrint('Notice: updating fast_stud_record: $inner');
+        }
+      }
     } catch (e) {
-      debugPrint('Notice: inserting into fast_stud_record: $e');
+      debugPrint('Notice: persisting into fast_stud_record: $e');
     }
 
     return true;
