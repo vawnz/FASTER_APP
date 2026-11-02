@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io' show File;
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'main.dart' show StudentProfile, kStudentPrograms;
@@ -45,27 +44,7 @@ class SupabaseService {
   }
 
   /// Reads a single key from .env file if accessible on the current platform
-  static String? _readKeyFromEnvFile(String keyName) {
-    if (kIsWeb) return null;
-    try {
-      final file = File('.env');
-      if (file.existsSync()) {
-        final lines = file.readAsLinesSync();
-        for (final line in lines) {
-          final trimmed = line.trim();
-          if (trimmed.startsWith('#') || !trimmed.contains('=')) continue;
-          final eqIndex = trimmed.indexOf('=');
-          final k = trimmed.substring(0, eqIndex).trim();
-          if (k == keyName) {
-            return trimmed.substring(eqIndex + 1).trim().replaceAll(RegExp(r'''^["']|["']$'''), '');
-          }
-        }
-      }
-    } catch (_) {
-      // Handled gracefully if File access is restricted
-    }
-    return null;
-  }
+  static String? _readKeyFromEnvFile(String keyName) => null;
 
   /// In-memory accounts registry for offline and fallback support
   static final Map<String, _LocalUser> _localUsers = {
