@@ -41,7 +41,7 @@ class SupabaseService {
     if (envKey.isNotEmpty) return envKey;
     final fileKey = _readKeyFromEnvFile('SUPABASE_ANON_KEY');
     if (fileKey != null && fileKey.isNotEmpty) return fileKey;
-    return '';
+    return 'sb_publishable_o6o4eOBQgrPlmrjIEzRgSQ_-Wz_gFC_';
   }
 
   /// Reads a single key from .env file if accessible on the current platform
