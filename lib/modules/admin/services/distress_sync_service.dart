@@ -19,6 +19,8 @@ class DistressSyncService {
   static Timer? _pollingTimer;
   static bool _isInitialized = false;
   static final Set<String> _knownSignalIds = <String>{};
+  static final Set<String> _resolvedStudentIds = <String>{};
+  static final Set<String> _resolvedSignalIds = <String>{};
 
   /// Initialize real-time synchronization and polling
   static Future<void> initialize() async {
@@ -87,6 +89,8 @@ class DistressSyncService {
 
     // 1. Immediately reflect in memory for instant local UI responsiveness
     _knownSignalIds.add(signalId);
+    _resolvedStudentIds.remove(studentId);
+    _resolvedSignalIds.remove(signalId);
     activeSignalsNotifier.value = [distress, ...activeSignalsNotifier.value];
     historyRecordsNotifier.value = [historyItem, ...historyRecordsNotifier.value];
 
@@ -138,8 +142,15 @@ class DistressSyncService {
 
       final activeSignals = await SupabaseService.fetchActiveDistressSignals();
 
+      // Exclude any distress signals that were resolved locally or in tombstone
+      final activeFiltered = activeSignals.where((s) =>
+          !_resolvedStudentIds.contains(s.studentId) &&
+          !_resolvedSignalIds.contains(s.id) &&
+          s.status != DistressStatus.resolved
+      ).toList();
+
       // Check for any newly incoming distress signal not seen before
-      for (final sig in activeSignals) {
+      for (final sig in activeFiltered) {
         if (!_knownSignalIds.contains(sig.id)) {
           _knownSignalIds.add(sig.id);
           triggerAlertNotification(sig);
@@ -148,10 +159,14 @@ class DistressSyncService {
 
       // Merge with any in-memory active signals not yet resolved
       final existingActive = activeSignalsNotifier.value;
-      final Set<String> loadedIds = activeSignals.map((s) => s.id).toSet();
+      final Set<String> loadedIds = activeFiltered.map((s) => s.id).toSet();
       final List<DistressSignal> merged = [
-        ...activeSignals,
-        ...existingActive.where((s) => !loadedIds.contains(s.id) && s.status != DistressStatus.resolved),
+        ...activeFiltered,
+        ...existingActive.where((s) =>
+            !loadedIds.contains(s.id) &&
+            s.status != DistressStatus.resolved &&
+            !_resolvedStudentIds.contains(s.studentId) &&
+            !_resolvedSignalIds.contains(s.id)),
       ];
 
       activeSignalsNotifier.value = merged;
@@ -199,14 +214,45 @@ class DistressSyncService {
   }
 
   /// Resolves an active distress signal and clears is_distress in fast_stud_info
-  static Future<void> resolveDistressSignal(String studentId) async {
+  static Future<void> resolveDistressSignal(String studentId, {String? signalId}) async {
+    // Add to tombstone sets so polling and Realtime updates never bring it back
+    _resolvedStudentIds.add(studentId);
+    if (signalId != null && signalId.isNotEmpty) {
+      _resolvedSignalIds.add(signalId);
+    }
+
+    // Also record any active signals matching this studentId or signalId
+    for (final s in activeSignalsNotifier.value) {
+      if (s.studentId == studentId || (signalId != null && s.id == signalId)) {
+        _resolvedStudentIds.add(s.studentId);
+        _resolvedSignalIds.add(s.id);
+      }
+    }
+
     activeSignalsNotifier.value = activeSignalsNotifier.value
-        .where((s) => s.studentId != studentId)
+        .where((s) =>
+            s.studentId != studentId &&
+            s.id != signalId &&
+            !_resolvedStudentIds.contains(s.studentId) &&
+            !_resolvedSignalIds.contains(s.id))
         .toList();
+
+    // Dismiss active banner if it corresponds to this resolved emergency
+    if (newAlertNotifier.value != null) {
+      final currentAlert = newAlertNotifier.value!;
+      if (currentAlert.studentId == studentId ||
+          currentAlert.id == signalId ||
+          _resolvedStudentIds.contains(currentAlert.studentId) ||
+          _resolvedSignalIds.contains(currentAlert.id)) {
+        clearAlertNotification();
+      }
+    }
 
     // Immediately update in-memory history status to RESOLVED
     historyRecordsNotifier.value = historyRecordsNotifier.value.map((rec) {
-      if (rec.studentId == studentId || rec.studentId.contains(studentId)) {
+      if (rec.studentId == studentId ||
+          rec.studentId.contains(studentId) ||
+          (signalId != null && rec.id == signalId)) {
         return EmergencyHistoryRecord(
           id: rec.id,
           studentId: rec.studentId,
@@ -225,7 +271,7 @@ class DistressSyncService {
     }).toList();
 
     try {
-      await SupabaseService.resolveDistressSignal(studentId: studentId);
+      await SupabaseService.resolveDistressSignal(studentId: studentId, signalId: signalId);
       await refresh();
     } catch (e) {
       debugPrint('Error resolving distress signal in Supabase: $e');
@@ -235,6 +281,8 @@ class DistressSyncService {
   /// Clears all emergency history records in memory and Supabase
   static Future<bool> clearHistory() async {
     historyRecordsNotifier.value = [];
+    _resolvedStudentIds.clear();
+    _resolvedSignalIds.clear();
     final success = await SupabaseService.clearEmergencyHistory();
     return success;
   }

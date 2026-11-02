@@ -403,11 +403,18 @@ class SupabaseService {
   }
 
   /// Resolves an active distress signal
-  static Future<bool> resolveDistressSignal({required String studentId}) async {
+  static Future<bool> resolveDistressSignal({required String studentId, String? signalId}) async {
     final cli = client;
     if (isConfigured && cli != null) {
       final int? idNum = int.tryParse(studentId.replaceAll(RegExp(r'\D'), ''));
       try {
+        if (signalId != null && int.tryParse(signalId) != null) {
+          await cli
+              .from('fast_stud_record')
+              .update({'stud_status': 'RESOLVED'})
+              .eq('id', int.parse(signalId));
+        }
+
         if (idNum != null) {
           await cli
               .from('fast_stud_record')
@@ -415,8 +422,19 @@ class SupabaseService {
               .eq('stud_id', idNum);
           await cli
               .from('fast_stud_info')
-              .update({'is_distress': false})
+              .update({
+                'is_distress': false,
+                'stud_status': 'RESOLVED',
+              })
               .eq('stud_id', idNum);
+        } else {
+          await cli
+              .from('fast_stud_info')
+              .update({
+                'is_distress': false,
+                'stud_status': 'RESOLVED',
+              })
+              .eq('stud_user', studentId);
         }
       } catch (e) {
         debugPrint('[FASTER] Notice resolving distress signal: $e');

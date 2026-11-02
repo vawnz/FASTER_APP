@@ -16,7 +16,7 @@ class _AdminHistoryTabState extends State<AdminHistoryTab> {
   List<EmergencyHistoryRecord> _records = [];
   bool _isLoading = true;
   String _searchQuery = '';
-  String _selectedStatusFilter = 'ALL';
+  String _selectedStatusFilter = '';
 
   @override
   void initState() {
@@ -138,7 +138,7 @@ class _AdminHistoryTabState extends State<AdminHistoryTab> {
           rec.program.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           rec.roomName.toLowerCase().contains(_searchQuery.toLowerCase());
 
-      final matchesStatus = _selectedStatusFilter == 'ALL' ||
+      final matchesStatus = _selectedStatusFilter.isEmpty ||
           rec.status.toUpperCase().contains(_selectedStatusFilter.toUpperCase());
 
       return matchesSearch && matchesStatus;
@@ -451,8 +451,6 @@ class _AdminHistoryTabState extends State<AdminHistoryTab> {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                _buildFilterChip('ALL', dark),
-                const SizedBox(width: 6),
                 _buildFilterChip('ACTIVE', dark),
                 const SizedBox(width: 6),
                 _buildFilterChip('DISPATCHED', dark),
@@ -647,7 +645,7 @@ class _AdminHistoryTabState extends State<AdminHistoryTab> {
   Widget _buildFilterChip(String label, bool dark) {
     final isSelected = _selectedStatusFilter == label;
     return GestureDetector(
-      onTap: () => setState(() => _selectedStatusFilter = label),
+      onTap: () => setState(() => _selectedStatusFilter = isSelected ? '' : label),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

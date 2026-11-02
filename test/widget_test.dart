@@ -563,8 +563,8 @@ void main() {
     expect(find.byType(AdminMainScreen), findsOneWidget);
     expect(find.text('FAST'), findsWidgets);
     expect(find.text('OFFICER PORTAL'), findsOneWidget);
-    // Verify upper right refresh button exists instead of theme toggle
-    expect(find.byIcon(Icons.refresh_rounded), findsOneWidget);
+    // Verify upper right refresh button was removed from header (as requested)
+    expect(find.byIcon(Icons.refresh_rounded), findsNothing);
 
     // 2. Verify 3 navigation options (HOME, HISTORY, PROFILE)
     expect(find.text('HOME'), findsOneWidget);

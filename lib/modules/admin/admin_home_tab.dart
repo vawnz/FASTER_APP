@@ -112,7 +112,7 @@ class _AdminHomeTabState extends State<AdminHomeTab>
         _selectedSignal = null;
       }
     });
-    DistressSyncService.resolveDistressSignal(signal.studentId);
+    DistressSyncService.resolveDistressSignal(signal.studentId, signalId: signal.id);
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

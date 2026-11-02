@@ -128,29 +128,6 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
                           ),
                         ],
                       ),
-                      const Spacer(),
-                      // REFRESH BUTTON (Replaced upper right theme toggle per instruction)
-                      IconButton(
-                        icon: const Icon(
-                          Icons.refresh_rounded,
-                          color: kGoogleRed,
-                          size: 22,
-                        ),
-                        tooltip: 'Refresh Live Distress Signals & History',
-                        onPressed: () async {
-                          await DistressSyncService.refresh();
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).clearSnackBars();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Distress signals & History refreshed.'),
-                                duration: Duration(seconds: 1),
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          }
-                        },
-                      ),
                     ],
                   ),
                 ),
