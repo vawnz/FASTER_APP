@@ -509,36 +509,39 @@ class _AdminHomeTabState extends State<AdminHomeTab>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Text(
-                          'Heat:',
+                          'Pulse: ',
                           style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
                         ),
-                        const SizedBox(width: 4),
                         Container(
                           width: 8,
                           height: 8,
                           decoration: const BoxDecoration(
-                            color: Color(0xFFFFC107),
+                            color: Color(0xFF00BF63), // 1 signal
                             shape: BoxShape.circle,
                           ),
                         ),
                         const SizedBox(width: 2),
+                        const Text('1 ', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
                         Container(
                           width: 8,
                           height: 8,
                           decoration: const BoxDecoration(
-                            color: Color(0xFFFF5722),
+                            color: Color(0xFFFF715F), // 2 signals
                             shape: BoxShape.circle,
                           ),
                         ),
                         const SizedBox(width: 2),
+                        const Text('2 ', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
                         Container(
                           width: 8,
                           height: 8,
                           decoration: const BoxDecoration(
-                            color: Color(0xFFE50914),
+                            color: Color(0xFFE50914), // 3+ signals
                             shape: BoxShape.circle,
                           ),
                         ),
+                        const SizedBox(width: 2),
+                        const Text('3+', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ),

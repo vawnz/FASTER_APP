@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import '../../core/constants.dart';
 import '../../models/student_profile.dart';
 import '../../widgets/resq_logo.dart';
+import '../admin/admin_heat_map_painter.dart';
+import '../admin/models/distress_signal.dart';
 import '../admin/services/distress_sync_service.dart';
+import 'campus_map_data.dart';
 import 'ground_floor.dart';
 import 'second_floor.dart';
 import 'map_search.dart';
@@ -20,7 +23,7 @@ class MapHomePage extends StatefulWidget {
   State<MapHomePage> createState() => _MapHomePageState();
 }
 
-class _MapHomePageState extends State<MapHomePage> {
+class _MapHomePageState extends State<MapHomePage> with SingleTickerProviderStateMixin {
   int floor = 0;
   Offset? selectedLocation;
   String? selectedRoom;
@@ -30,8 +33,38 @@ class _MapHomePageState extends State<MapHomePage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
+  CampusAreaCategory? _categoryFilter;
+  late final AnimationController _pulseController;
+  List<DistressSignal> _activeSignals = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    );
+    if (WidgetsBinding.instance.runtimeType.toString() != 'AutomatedTestWidgetsFlutterBinding') {
+      _pulseController.repeat();
+    } else {
+      _pulseController.value = 0.5;
+    }
+    _activeSignals = DistressSyncService.activeSignalsNotifier.value;
+    DistressSyncService.activeSignalsNotifier.addListener(_onSignalsUpdated);
+  }
+
+  void _onSignalsUpdated() {
+    if (mounted) {
+      setState(() {
+        _activeSignals = DistressSyncService.activeSignalsNotifier.value;
+      });
+    }
+  }
+
   @override
   void dispose() {
+    _pulseController.dispose();
+    DistressSyncService.activeSignalsNotifier.removeListener(_onSignalsUpdated);
     _searchController.dispose();
     super.dispose();
   }
@@ -40,10 +73,13 @@ class _MapHomePageState extends State<MapHomePage> {
     if (isFloorOffBoundaries(loc.floor, loc.coordinates.dx, loc.coordinates.dy)) {
       return;
     }
+    final area = findAreaAt(loc.floor, loc.coordinates.dx, loc.coordinates.dy);
+    final targetLoc = area != null ? area.normalizedCenter : loc.coordinates;
+
     setState(() {
       _isSearching = false;
       floor = loc.floor;
-      selectedLocation = loc.coordinates;
+      selectedLocation = targetLoc;
       selectedRoom = loc.name;
       showEmergencyPath = false;
     });
@@ -56,13 +92,25 @@ class _MapHomePageState extends State<MapHomePage> {
     return 'Central Staircase';
   }
 
+  void selectArea(CampusMapArea area) {
+    setState(() {
+      selectedLocation = area.normalizedCenter;
+      selectedRoom = area.name;
+      showEmergencyPath = false;
+    });
+  }
+
   void selectLocation(Offset location, String name) {
     if (isFloorOffBoundaries(floor, location.dx, location.dy) || name == 'Off Boundaries') {
       return;
     }
+    final area = findAreaAt(floor, location.dx, location.dy);
+    final targetLocation = area != null ? area.normalizedCenter : location;
+    final targetName = area != null ? area.name : name;
+
     setState(() {
-      selectedLocation = location;
-      selectedRoom = name;
+      selectedLocation = targetLocation;
+      selectedRoom = targetName;
       showEmergencyPath = false;
     });
   }
@@ -191,6 +239,9 @@ class _MapHomePageState extends State<MapHomePage> {
       selectedLocation = null;
       selectedRoom = null;
       showEmergencyPath = false;
+      if (newFloor == 1 && _categoryFilter == CampusAreaCategory.outdoor) {
+        _categoryFilter = null;
+      }
     });
   }
 
@@ -302,6 +353,7 @@ class _MapHomePageState extends State<MapHomePage> {
             ),
             const SizedBox(height: 8),
             Expanded(
+              flex: 3,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 6),
                 child: InteractiveViewer(
@@ -339,8 +391,31 @@ class _MapHomePageState extends State<MapHomePage> {
                               );
                               return;
                             }
-                            final room = floor == 0 ? groundRoomAt(x, y) : secondRoomAt(x, y);
-                            selectLocation(Offset(x, y), room);
+                            final area = findAreaAt(floor, x, y);
+                            if (area != null) {
+                              if (area.category == CampusAreaCategory.outOfBound) {
+                                ScaffoldMessenger.of(context).clearSnackBars();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Row(
+                                      children: [
+                                        Icon(Icons.block, color: Colors.white, size: 18),
+                                        SizedBox(width: 8),
+                                        Text('Location pinning is disabled in out-of-boundary areas.'),
+                                      ],
+                                    ),
+                                    backgroundColor: Color(0xFF1A1A1A),
+                                    duration: Duration(seconds: 2),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                                return;
+                              }
+                              selectArea(area);
+                            } else {
+                              final room = floor == 0 ? groundRoomAt(x, y) : secondRoomAt(x, y);
+                              selectLocation(Offset(x, y), room);
+                            }
                           },
                           child: Stack(
                             children: [
@@ -354,18 +429,22 @@ class _MapHomePageState extends State<MapHomePage> {
                                 ),
                               ),
                               Positioned.fill(
-                                child: CustomPaint(
-                                  painter: floor == 0
-                                      ? GroundFloorPainter(
-                                          selectedLocation: selectedLocation,
-                                          selectedRoom: selectedRoom,
-                                          showEmergencyPath: showEmergencyPath,
-                                        )
-                                      : SecondFloorPainter(
-                                          selectedLocation: selectedLocation,
-                                          selectedRoom: selectedRoom,
-                                          showEmergencyPath: showEmergencyPath,
-                                        ),
+                                child: AnimatedBuilder(
+                                  animation: _pulseController,
+                                  builder: (context, _) {
+                                    return CustomPaint(
+                                      painter: AdminHeatMapPainter(
+                                        floor: floor,
+                                        heatPoints: computeDynamicHeatPoints(_activeSignals, floor),
+                                        distressSignals: _activeSignals,
+                                        pulseValue: _pulseController.value,
+                                        pinnedLocation: selectedLocation,
+                                        pinnedRoom: selectedRoom,
+                                        showHeatMap: true,
+                                        showBeacons: true,
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                             ],
@@ -377,65 +456,12 @@ class _MapHomePageState extends State<MapHomePage> {
                 ),
               ),
             ),
-            if (selectedRoom != null && selectedRoom != 'Off Boundaries')
-              Container(
-                margin: const EdgeInsets.fromLTRB(14, 4, 14, 10),
-                padding: const EdgeInsets.all(13),
-                decoration: BoxDecoration(
-                  color: dark ? const Color(0xCC161824) : Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: dark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.08),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: dark ? 0.35 : 0.08),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE50914).withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.navigation, color: kGoogleRed, size: 20),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            selectedRoom!,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: dark ? Colors.white : const Color(0xFF16181F),
-                            ),
-                          ),
-                          Text(
-                            floor == 0
-                                ? 'Dispatch from FAST Office • Ground Floor'
-                                : 'Climbing up ${_getSecondFloorStaircase(selectedLocation)} • 2nd Floor',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: dark ? Colors.white70 : Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: openHelpDialog,
-                      icon: const Icon(Icons.phone, color: kGoogleRed),
-                    ),
-                  ],
-                ),
-              ),
+            const SizedBox(height: 6),
+            // Radio Button Location Selector below the Map Layer
+            Expanded(
+              flex: 2,
+              child: _buildRadioSelectorBelowMap(dark),
+            ),
           ],
         ),
 
@@ -443,6 +469,263 @@ class _MapHomePageState extends State<MapHomePage> {
         if (_isSearching)
           _buildSearchOverlay(),
       ],
+    );
+  }
+
+  Widget _buildRadioSelectorBelowMap(bool dark) {
+    final areas = getAreasForFloor(floor).where((a) {
+      if (a.category == CampusAreaCategory.outOfBound) return false;
+      if (_categoryFilter != null && a.category != _categoryFilter) return false;
+      return true;
+    }).toList();
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+      decoration: BoxDecoration(
+        color: dark ? const Color(0xEE161824) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: dark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.08),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: dark ? 0.35 : 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // 1. Header with Category Filters
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 8, 14, 6),
+            child: Row(
+              children: [
+                const Icon(Icons.radio_button_checked, size: 16, color: kGoogleRed),
+                const SizedBox(width: 6),
+                Text(
+                  'PIN LOCATION',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                    color: dark ? Colors.white70 : Colors.black87,
+                  ),
+                ),
+                const Spacer(),
+                // Filter Pills
+                _buildCategoryPill('ALL', null, null, dark),
+                const SizedBox(width: 4),
+                _buildCategoryPill('ROOMS', CampusAreaCategory.room, const Color(0xFFFF66C4), dark),
+                const SizedBox(width: 4),
+                _buildCategoryPill('INDOOR', CampusAreaCategory.indoor, const Color(0xFF00BF63), dark),
+                if (floor == 0) ...[
+                  const SizedBox(width: 4),
+                  _buildCategoryPill('OUTDOOR', CampusAreaCategory.outdoor, const Color(0xFFFF715F), dark),
+                ],
+              ],
+            ),
+          ),
+          const Divider(height: 1, thickness: 0.8),
+
+          // 2. Scrollable Radio List of Areas
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              itemCount: areas.length,
+              separatorBuilder: (_, _) => const Divider(height: 1, indent: 36),
+              itemBuilder: (context, index) {
+                final area = areas[index];
+                final isSelected = selectedRoom == area.name;
+
+                return InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () => selectArea(area),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+                    child: Row(
+                      children: [
+                        // Radio button
+                        SizedBox(
+                          width: 26,
+                          height: 26,
+                          child: Radio<String>(
+                            value: area.name,
+                            // ignore: deprecated_member_use
+                            groupValue: selectedRoom,
+                            activeColor: area.categoryColor,
+                            // ignore: deprecated_member_use
+                            onChanged: (_) => selectArea(area),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        // Category dot
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: area.categoryColor,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Area Name
+                        Expanded(
+                          child: Text(
+                            area.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                              color: isSelected
+                                  ? (dark ? Colors.white : const Color(0xFF16181F))
+                                  : (dark ? Colors.white70 : Colors.black87),
+                            ),
+                          ),
+                        ),
+                        // Dimension Pill
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: area.categoryColor.withValues(alpha: dark ? 0.20 : 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: area.categoryColor.withValues(alpha: 0.45),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Text(
+                            area.dimensionLabel,
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.bold,
+                              color: area.categoryColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // 3. Active Emergency Call Banner (when a location is pinned)
+          if (selectedRoom != null && selectedRoom != 'Off Boundaries')
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: dark ? const Color(0xFF1C1E2B) : const Color(0xFFF8F9FA),
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
+                border: Border(
+                  top: BorderSide(
+                    color: dark ? Colors.white10 : Colors.black12,
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE50914).withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.navigation, color: kGoogleRed, size: 16),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          selectedRoom!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: dark ? Colors.white : const Color(0xFF16181F),
+                          ),
+                        ),
+                        Text(
+                          floor == 0
+                              ? 'Dispatch from FAST Office • Ground Floor'
+                              : 'Climbing up ${_getSecondFloorStaircase(selectedLocation)} • 2nd Floor',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: dark ? Colors.white60 : Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  ElevatedButton.icon(
+                    onPressed: openHelpDialog,
+                    icon: const Icon(Icons.phone, size: 14),
+                    label: const Text('CALL FOR HELP', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 10.5)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kGoogleRed,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryPill(String label, CampusAreaCategory? cat, Color? color, bool dark) {
+    final isSelected = _categoryFilter == cat;
+    return GestureDetector(
+      onTap: () => setState(() => _categoryFilter = isSelected ? null : cat),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (color ?? (dark ? Colors.white24 : Colors.black12))
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: color ?? (dark ? Colors.white24 : Colors.black12),
+            width: 0.8,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (color != null) ...[
+              Container(
+                width: 5,
+                height: 5,
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 3),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 8.5,
+                fontWeight: FontWeight.w800,
+                color: isSelected
+                    ? Colors.white
+                    : (dark ? Colors.white70 : Colors.black87),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

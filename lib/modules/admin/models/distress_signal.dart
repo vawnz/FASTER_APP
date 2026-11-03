@@ -132,12 +132,16 @@ class HeatPoint {
   final double normY;
   final double intensity; // 0.0 to 1.0
   final double radius;
+  final Color? color;
+  final int count;
 
   const HeatPoint({
     required this.normX,
     required this.normY,
     required this.intensity,
     this.radius = 90.0,
+    this.color,
+    this.count = 1,
   });
 }
 
@@ -219,18 +223,39 @@ class EmergencyHistoryRecord {
 
 }
 
-/// Heat Map via amount of incidents
+/// Heat Map via simultaneous distress signals per location:
+/// - 1 signal: Green pulse (#00BF63)
+/// - 2 signals: Orange pulse (#FF715F)
+/// - 3 or more signals: Red pulse (#E50914)
 List<HeatPoint> computeDynamicHeatPoints(List<DistressSignal> signals, int floor) {
   final floorSignals = signals.where((s) => s.floor == floor && s.status != DistressStatus.resolved).toList();
-  return floorSignals.map((s) {
-    final double intensity = s.urgency == DistressUrgency.critical
-        ? 0.95
-        : (s.urgency == DistressUrgency.high ? 0.75 : 0.55);
+
+  final Map<String, List<DistressSignal>> grouped = {};
+  for (final s in floorSignals) {
+    final key = s.roomName.trim().toUpperCase();
+    grouped.putIfAbsent(key, () => []).add(s);
+  }
+
+  return grouped.values.map((list) {
+    final first = list.first;
+    final count = list.length;
+    Color pulseColor;
+    if (count <= 1) {
+      pulseColor = const Color(0xFF00BF63); // Green pulse for 1
+    } else if (count == 2) {
+      pulseColor = const Color(0xFFFF715F); // Orange pulse for 2
+    } else {
+      pulseColor = const Color(0xFFE50914); // Red pulse for 3 or more
+    }
+
+    final double intensity = count == 1 ? 0.65 : (count == 2 ? 0.85 : 1.0);
     return HeatPoint(
-      normX: s.position.dx,
-      normY: s.position.dy,
+      normX: first.position.dx,
+      normY: first.position.dy,
       intensity: intensity,
-      radius: 110.0,
+      radius: 95.0 + (count - 1) * 20.0,
+      color: pulseColor,
+      count: count,
     );
   }).toList();
 }

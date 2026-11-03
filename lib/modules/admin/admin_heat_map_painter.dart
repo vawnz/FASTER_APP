@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../map/base_map_painter.dart';
+import '../map/campus_map_data.dart';
 import '../map/ground_floor.dart';
 import '../map/second_floor.dart';
 import 'models/distress_signal.dart';
@@ -69,15 +70,16 @@ class AdminHeatMapPainter extends BaseFloorPainter {
     for (final hp in heatPoints) {
       final center = Offset(hp.normX * w, hp.normY * h);
       final radius = hp.radius;
+      final Color baseColor = hp.color ?? const Color(0xFFE50914);
 
       final gradient = RadialGradient(
         colors: [
-          const Color(0xFFE50914).withValues(alpha: 0.65 * hp.intensity),
-          const Color(0xFFFF5722).withValues(alpha: 0.45 * hp.intensity),
-          const Color(0xFFFFC107).withValues(alpha: 0.22 * hp.intensity),
-          const Color(0x00FFC107),
+          baseColor.withValues(alpha: 0.65 * hp.intensity),
+          baseColor.withValues(alpha: 0.38 * hp.intensity),
+          baseColor.withValues(alpha: 0.12 * hp.intensity),
+          baseColor.withValues(alpha: 0.0),
         ],
-        stops: const [0.0, 0.38, 0.72, 1.0],
+        stops: const [0.0, 0.40, 0.75, 1.0],
       );
 
       final paint = Paint()
@@ -89,62 +91,64 @@ class AdminHeatMapPainter extends BaseFloorPainter {
   }
 
   void _drawLiveDistressBeacons(Canvas canvas, Size size) {
-    final double w = size.width;
-    final double h = size.height;
+    final signalsOnFloor = distressSignals.where((s) => s.floor == floor && s.status != DistressStatus.resolved).toList();
+    final clusters = computeLocationClusters(signalsOnFloor, floor);
 
-    final signalsOnFloor = distressSignals.where((s) => s.floor == floor).toList();
+    for (final cluster in clusters) {
+      final center = cluster.center;
+      final bool isSelected = selectedSignal != null &&
+          cluster.signals.any((s) => (s as DistressSignal).id == selectedSignal!.id);
+      final Color pulseColor = cluster.pulseColor;
+      final int count = cluster.count;
 
-    for (final sig in signalsOnFloor) {
-      final center = Offset(sig.position.dx * w, sig.position.dy * h);
-      final isSelected = selectedSignal?.id == sig.id;
-      final isCritical = sig.urgency == DistressUrgency.critical;
-
-      // Concentric pulsating animated waves
-      final double wave1Radius = 18.0 + (pulseValue * 36.0);
-      final double wave1Alpha = (1.0 - pulseValue).clamp(0.0, 1.0) * (isCritical ? 0.75 : 0.50);
+      // Concentric pulsating animated waves in count-based pulse color:
+      // Green for 1, Orange for 2, Red for 3+
+      final double wave1Radius = 18.0 + (pulseValue * 38.0);
+      final double wave1Alpha = (1.0 - pulseValue).clamp(0.0, 1.0) * (count >= 3 ? 0.85 : 0.65);
 
       final wave1Paint = Paint()
-        ..color = sig.urgencyColor.withValues(alpha: wave1Alpha)
+        ..color = pulseColor.withValues(alpha: wave1Alpha)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.0;
+        ..strokeWidth = count >= 3 ? 3.5 : 2.5;
       canvas.drawCircle(center, wave1Radius, wave1Paint);
 
       final double secondPhase = (pulseValue + 0.45) % 1.0;
       final double wave2Radius = 14.0 + (secondPhase * 28.0);
-      final double wave2Alpha = (1.0 - secondPhase).clamp(0.0, 1.0) * 0.40;
+      final double wave2Alpha = (1.0 - secondPhase).clamp(0.0, 1.0) * 0.45;
 
       final wave2Paint = Paint()
-        ..color = sig.urgencyColor.withValues(alpha: wave2Alpha)
+        ..color = pulseColor.withValues(alpha: wave2Alpha)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.0;
       canvas.drawCircle(center, wave2Radius, wave2Paint);
 
       // Core Outer Glow Shadow
       final glowPaint = Paint()
-        ..color = sig.urgencyColor.withValues(alpha: 0.4)
+        ..color = pulseColor.withValues(alpha: 0.45)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
       canvas.drawCircle(center, 18.0, glowPaint);
 
       // Core Solid Beacon
       final corePaint = Paint()
-        ..color = sig.urgencyColor
+        ..color = pulseColor
         ..style = PaintingStyle.fill;
-      canvas.drawCircle(center, 14.0, corePaint);
+      canvas.drawCircle(center, 15.0, corePaint);
 
       // White Border
       final borderPaint = Paint()
         ..color = Colors.white
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.5;
-      canvas.drawCircle(center, 14.0, borderPaint);
+      canvas.drawCircle(center, 15.0, borderPaint);
 
-      // Center Icon: Exclamation or SOS
+      // Center Icon: simultaneous count or exclamation
+      final String centerText = count > 1 ? '$count' : '!';
       final iconPainter = TextPainter(
         text: TextSpan(
-          text: isCritical ? '!' : 'SOS',
-          style: TextStyle(
+          text: centerText,
+          style: const TextStyle(
             color: Colors.white,
-            fontSize: isCritical ? 14 : 9,
+            fontSize: 13,
             fontWeight: FontWeight.w900,
             fontFamily: 'sans-serif',
           ),
@@ -157,7 +161,7 @@ class AdminHeatMapPainter extends BaseFloorPainter {
       );
 
       // Floating Callout Badge above Beacon
-      _drawSignalCalloutBadge(canvas, center, sig, isSelected);
+      _drawClusterCalloutBadge(canvas, center, cluster, isSelected);
 
       // Selected targeting reticle
       if (isSelected) {
@@ -177,13 +181,21 @@ class AdminHeatMapPainter extends BaseFloorPainter {
     }
   }
 
-  void _drawSignalCalloutBadge(Canvas canvas, Offset center, DistressSignal sig, bool isSelected) {
-    final String label = '${sig.studentName.split(' ').first}: ${sig.roomName} (${sig.urgencyLabel})';
+  void _drawClusterCalloutBadge(Canvas canvas, Offset center, LocationDistressCluster cluster, bool isSelected) {
+    final firstSig = cluster.signals.first as DistressSignal;
+    String label;
+    if (cluster.count == 1) {
+      label = '${firstSig.studentName.split(' ').first}: ${cluster.locationName} (1 Alert)';
+    } else if (cluster.count == 2) {
+      label = '${cluster.locationName}: 2 Simultaneous Alerts';
+    } else {
+      label = 'CRITICAL: ${cluster.locationName} (${cluster.count} Alerts)';
+    }
 
     final textSpan = TextSpan(
       children: [
         TextSpan(
-          text: '🚨 ',
+          text: cluster.count >= 3 ? '🔥 ' : (cluster.count == 2 ? '⚠️ ' : '🚨 '),
           style: const TextStyle(fontSize: 10),
         ),
         TextSpan(
@@ -217,9 +229,9 @@ class AdminHeatMapPainter extends BaseFloorPainter {
       ..style = PaintingStyle.fill;
 
     final borderPaint = Paint()
-      ..color = isSelected ? const Color(0xFFFFD54F) : sig.urgencyColor.withValues(alpha: 0.8)
+      ..color = isSelected ? const Color(0xFFFFD54F) : cluster.pulseColor.withValues(alpha: 0.85)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = isSelected ? 2.0 : 1.2;
+      ..strokeWidth = isSelected ? 2.0 : 1.4;
 
     final rrect = RRect.fromRectAndRadius(badgeRect, const Radius.circular(8));
     canvas.drawRRect(rrect, bgPaint);
