@@ -503,6 +503,7 @@ class _AuthSplashScreenState extends State<AuthSplashScreen>
                       child: Opacity(
                         opacity: _contentFadeIn.value.clamp(0.0, 1.0),
                         child: AnimatedSwitcher(
+                          alignment: Alignment.topLeft,
                           duration: const Duration(milliseconds: 250),
                           switchInCurve: Curves.easeInOut,
                           switchOutCurve: Curves.easeInOut,
