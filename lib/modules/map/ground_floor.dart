@@ -149,52 +149,52 @@ class GroundFloorPainter extends BaseFloorPainter {
 
   static const List<_GroundRoomLabelItem> _roomLabels = [
     // Top-Right Wing
-    _GroundRoomLabelItem('FAST\nOFFICE', 0.6865, 0.1438, fontSize: 10.0, color: Color(0xFFB71C1C)),
-    _GroundRoomLabelItem('JMA\nOFFICE', 0.7422, 0.1438, fontSize: 9.0),
-    _GroundRoomLabelItem('ROTC\nOFFICE', 0.7930, 0.1438, fontSize: 9.0),
-    _GroundRoomLabelItem('CSG\nOFFICE', 0.8418, 0.1438, fontSize: 9.0),
-    _GroundRoomLabelItem('CANTEEN DINING AREA', 0.7383, 0.2400, fontSize: 11.0),
-    _GroundRoomLabelItem('CANTEEN\nKITCHEN', 0.8438, 0.2400, fontSize: 9.5),
+    _GroundRoomLabelItem('', 0.6865, 0.1438, fontSize: 10.0, color: Color(0xFFB71C1C)),
+    _GroundRoomLabelItem('', 0.7422, 0.1438, fontSize: 9.0),
+    _GroundRoomLabelItem('', 0.7930, 0.1438, fontSize: 9.0),
+    _GroundRoomLabelItem('', 0.8418, 0.1438, fontSize: 9.0),
+    _GroundRoomLabelItem('', 0.7383, 0.2400, fontSize: 11.0),
+    _GroundRoomLabelItem('', 0.8438, 0.2400, fontSize: 9.5),
 
     // Courtyard (Garden & Bleachers Differentiated)
-    _GroundRoomLabelItem('GARDEN', 0.5176, 0.1826, fontSize: 11.0, color: Color(0xFF1B5E20)),
-    _GroundRoomLabelItem('BLEACHERS', 0.3711, 0.1867, fontSize: 9.5, color: Color(0xFF2E7D32)),
-    _GroundRoomLabelItem('TERRACE', 0.3711, 0.3154, fontSize: 9.0, color: Color(0xFF455A64)),
+    _GroundRoomLabelItem('', 0.5176, 0.1826, fontSize: 11.0, color: Color(0xFF1B5E20)),
+    _GroundRoomLabelItem('', 0.3711, 0.1867, fontSize: 9.5, color: Color(0xFF2E7D32)),
+    _GroundRoomLabelItem('', 0.3711, 0.3154, fontSize: 9.0, color: Color(0xFF455A64)),
 
     // Far Left Wing (Stairs at top-left are NOT labeled per user instruction)
-    _GroundRoomLabelItem('HM LABORATORY\nCOLD KITCHEN', 0.1641, 0.3001, fontSize: 9.5),
-    _GroundRoomLabelItem('HM LABORATORY\nHOT KITCHEN', 0.1641, 0.4564, fontSize: 9.5),
-    _GroundRoomLabelItem('INVENTORY\nROOM', 0.1641, 0.6362, fontSize: 9.5),
+    _GroundRoomLabelItem('', 0.1641, 0.3001, fontSize: 9.5),
+    _GroundRoomLabelItem('', 0.1641, 0.4564, fontSize: 9.5),
+    _GroundRoomLabelItem('', 0.1641, 0.6362, fontSize: 9.5),
 
     // Middle Wing (West of Lobby)
-    _GroundRoomLabelItem('HM\nDEPARTMENT', 0.3057, 0.1881, fontSize: 10.0),
-    _GroundRoomLabelItem('AIHMS\nOFFICE', 0.3057, 0.3250, fontSize: 10.0),
-    _GroundRoomLabelItem('IT / CS\nDEPARTMENT', 0.2871, 0.4550, fontSize: 9.0),
-    _GroundRoomLabelItem('EL CHABACANO', 0.3389, 0.4260, fontSize: 8.5),
-    _GroundRoomLabelItem('MIS', 0.3398, 0.4993, fontSize: 9.0),
-    _GroundRoomLabelItem('CR', 0.3877, 0.4260, fontSize: 8.5),
-    _GroundRoomLabelItem('REGISTRAR', 0.3877, 0.4855, fontSize: 8.5),
-    _GroundRoomLabelItem('CASHIER', 0.3877, 0.5228, fontSize: 8.5),
-    _GroundRoomLabelItem('LOBBY', 0.5176, 0.4772, fontSize: 13.0),
+    _GroundRoomLabelItem('', 0.3057, 0.1881, fontSize: 10.0),
+    _GroundRoomLabelItem('', 0.3057, 0.3250, fontSize: 10.0),
+    _GroundRoomLabelItem('', 0.2871, 0.4550, fontSize: 9.0),
+    _GroundRoomLabelItem('', 0.3389, 0.4260, fontSize: 8.5),
+    _GroundRoomLabelItem('', 0.3398, 0.4993, fontSize: 9.0),
+    _GroundRoomLabelItem('', 0.3877, 0.4260, fontSize: 8.5),
+    _GroundRoomLabelItem('', 0.3877, 0.4855, fontSize: 8.5),
+    _GroundRoomLabelItem('', 0.3877, 0.5228, fontSize: 8.5),
+    _GroundRoomLabelItem('', 0.5176, 0.4772, fontSize: 13.0),
 
     // Middle Row (East of Lobby)
-    _GroundRoomLabelItem('ROOM 108', 0.6445, 0.4564, fontSize: 8.5),
-    _GroundRoomLabelItem('ROOM 107\nCOM LAB', 0.7031, 0.4564, fontSize: 9.0),
-    _GroundRoomLabelItem('RDE\nOFFICE', 0.7764, 0.4564, fontSize: 9.0),
-    _GroundRoomLabelItem('WOMEN\'S\nCR', 0.8350, 0.4564, fontSize: 8.5),
+    _GroundRoomLabelItem('', 0.6445, 0.4564, fontSize: 8.5),
+    _GroundRoomLabelItem('', 0.7031, 0.4564, fontSize: 9.0),
+    _GroundRoomLabelItem('', 0.7764, 0.4564, fontSize: 9.0),
+    _GroundRoomLabelItem('', 0.8350, 0.4564, fontSize: 8.5),
 
     // Bottom Wing (Stairs at bottom-right are NOT labeled per user instruction)
-    _GroundRoomLabelItem('JPCS\nOFFICE', 0.2305, 0.6404, fontSize: 8.5),
-    _GroundRoomLabelItem('GAD\nOFFICE', 0.2305, 0.7068, fontSize: 8.5),
-    _GroundRoomLabelItem('OSAS', 0.2861, 0.6694, fontSize: 9.5),
-    _GroundRoomLabelItem('ROOM 119\nCOM LAB', 0.3418, 0.6694, fontSize: 9.0),
-    _GroundRoomLabelItem('ACCRE.\nOFFICE', 0.3926, 0.6694, fontSize: 8.5),
-    _GroundRoomLabelItem('GUIDANCE', 0.4414, 0.6404, fontSize: 8.5),
-    _GroundRoomLabelItem('DEAN\'S\nOFFICE', 0.4404, 0.7068, fontSize: 8.5),
-    _GroundRoomLabelItem('ROOM 109\nCOM LAB', 0.6240, 0.6694, fontSize: 9.0),
-    _GroundRoomLabelItem('ROOM 106\nCOM LAB', 0.7051, 0.6694, fontSize: 9.0),
-    _GroundRoomLabelItem('ROOM 104\nCOM LAB', 0.8066, 0.6694, fontSize: 9.0),
-    _GroundRoomLabelItem('GUARD HOUSE', 0.9141, 0.9225, fontSize: 9.5),
+    _GroundRoomLabelItem('', 0.2305, 0.6404, fontSize: 8.5),
+    _GroundRoomLabelItem('', 0.2305, 0.7068, fontSize: 8.5),
+    _GroundRoomLabelItem('', 0.2861, 0.6694, fontSize: 9.5),
+    _GroundRoomLabelItem('', 0.3418, 0.6694, fontSize: 9.0),
+    _GroundRoomLabelItem('', 0.3926, 0.6694, fontSize: 8.5),
+    _GroundRoomLabelItem('', 0.4414, 0.6404, fontSize: 8.5),
+    _GroundRoomLabelItem('', 0.4404, 0.7068, fontSize: 8.5),
+    _GroundRoomLabelItem('', 0.6240, 0.6694, fontSize: 9.0),
+    _GroundRoomLabelItem('', 0.7051, 0.6694, fontSize: 9.0),
+    _GroundRoomLabelItem('', 0.8066, 0.6694, fontSize: 9.0),
+    _GroundRoomLabelItem('', 0.9141, 0.9225, fontSize: 9.5),
   ];
 
   @override

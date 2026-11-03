@@ -162,34 +162,34 @@ class SecondFloorPainter extends BaseFloorPainter {
 
   static const List<_RoomLabelItem> _roomLabels = [
     // Left Wing Rooms (Stairs at top-left are NOT labeled per user instruction)
-    _RoomLabelItem('ROOM 220', 0.0645, 0.2877, fontSize: 10.0),
-    _RoomLabelItem('ROOM 219', 0.0645, 0.3928, fontSize: 10.0),
-    _RoomLabelItem('ROOM 218', 0.0645, 0.5021, fontSize: 10.0),
-    _RoomLabelItem('ROOM 217 /\nREADING ROOM', 0.0645, 0.6680, fontSize: 8.5),
+    _RoomLabelItem('', 0.0645, 0.2877, fontSize: 10.0),
+    _RoomLabelItem('', 0.0645, 0.3928, fontSize: 10.0),
+    _RoomLabelItem('', 0.0645, 0.5021, fontSize: 10.0),
+    _RoomLabelItem('', 0.0645, 0.6680, fontSize: 8.5),
 
     // Library Area
-    _RoomLabelItem('LIBRARY\nEXTENSION', 0.2598, 0.2573, fontSize: 9.5),
-    _RoomLabelItem('LIBRARY', 0.2734, 0.4481, fontSize: 11.5),
+    _RoomLabelItem('', 0.2598, 0.2573, fontSize: 9.5),
+    _RoomLabelItem('', 0.2734, 0.4481, fontSize: 11.5),
 
     // North Row Rooms (Central staircase is NOT labeled per user instruction)
-    _RoomLabelItem('ROOM 211', 0.3877, 0.4910, fontSize: 9.5),
-    _RoomLabelItem('ROOM 209', 0.4648, 0.4910, fontSize: 9.5),
-    _RoomLabelItem('ROOM 207', 0.5420, 0.4910, fontSize: 9.5),
-    _RoomLabelItem('ROOM 205', 0.7070, 0.4910, fontSize: 9.5),
-    _RoomLabelItem('ROOM 203', 0.7842, 0.4910, fontSize: 9.5),
-    _RoomLabelItem('ROOM 202', 0.8613, 0.4910, fontSize: 9.5),
-    _RoomLabelItem('MEN\'S CR', 0.9385, 0.4910, fontSize: 8.5),
+    _RoomLabelItem('', 0.3877, 0.4910, fontSize: 9.5),
+    _RoomLabelItem('', 0.4648, 0.4910, fontSize: 9.5),
+    _RoomLabelItem('', 0.5420, 0.4910, fontSize: 9.5),
+    _RoomLabelItem('', 0.7070, 0.4910, fontSize: 9.5),
+    _RoomLabelItem('', 0.7842, 0.4910, fontSize: 9.5),
+    _RoomLabelItem('', 0.8613, 0.4910, fontSize: 9.5),
+    _RoomLabelItem('', 0.9385, 0.4910, fontSize: 8.5),
 
     // South Row Rooms (Right staircase is NOT labeled per user instruction)
-    _RoomLabelItem('DEPT.', 0.1807, 0.6985, fontSize: 10.5),
-    _RoomLabelItem('ROOM 214', 0.2822, 0.6985, fontSize: 9.5),
-    _RoomLabelItem('ROOM 213', 0.3594, 0.6985, fontSize: 9.5),
-    _RoomLabelItem('ROOM 212', 0.4365, 0.6985, fontSize: 9.5),
-    _RoomLabelItem('ROOM 210', 0.5264, 0.6985, fontSize: 9.5),
-    _RoomLabelItem('ROOM 208', 0.6289, 0.6985, fontSize: 9.5),
-    _RoomLabelItem('ROOM 206', 0.7236, 0.6985, fontSize: 9.5),
-    _RoomLabelItem('ROOM 204', 0.8066, 0.6985, fontSize: 9.5),
-    _RoomLabelItem('ROOM 201', 0.8770, 0.6985, fontSize: 9.5),
+    _RoomLabelItem('', 0.1807, 0.6985, fontSize: 10.5),
+    _RoomLabelItem('', 0.2822, 0.6985, fontSize: 9.5),
+    _RoomLabelItem('', 0.3594, 0.6985, fontSize: 9.5),
+    _RoomLabelItem('', 0.4365, 0.6985, fontSize: 9.5),
+    _RoomLabelItem('', 0.5264, 0.6985, fontSize: 9.5),
+    _RoomLabelItem('', 0.6289, 0.6985, fontSize: 9.5),
+    _RoomLabelItem('', 0.7236, 0.6985, fontSize: 9.5),
+    _RoomLabelItem('', 0.8066, 0.6985, fontSize: 9.5),
+    _RoomLabelItem('', 0.8770, 0.6985, fontSize: 9.5),
   ];
 
   @override
