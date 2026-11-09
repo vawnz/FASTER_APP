@@ -138,8 +138,6 @@ class _GroundDoorData {
 
 // GROUND FLOOR PAINTER
 // ============================================================
-// Rendered on top of the 1:1 replica floor plan image.
-// Contains ONLY the labeling (without labeling stairs) and interactive emergency route/pin.
 class GroundFloorPainter extends BaseFloorPainter {
   GroundFloorPainter({
     required super.selectedLocation,
@@ -148,7 +146,7 @@ class GroundFloorPainter extends BaseFloorPainter {
   });
 
   static const List<_GroundRoomLabelItem> _roomLabels = [
-    // Top-Right Wing
+    // Top Right
     _GroundRoomLabelItem('', 0.6865, 0.1438, fontSize: 10.0, color: Color(0xFFB71C1C)),
     _GroundRoomLabelItem('', 0.7422, 0.1438, fontSize: 9.0),
     _GroundRoomLabelItem('', 0.7930, 0.1438, fontSize: 9.0),
@@ -156,17 +154,17 @@ class GroundFloorPainter extends BaseFloorPainter {
     _GroundRoomLabelItem('', 0.7383, 0.2400, fontSize: 11.0),
     _GroundRoomLabelItem('', 0.8438, 0.2400, fontSize: 9.5),
 
-    // Courtyard (Garden & Bleachers Differentiated)
+    //Outdoor
     _GroundRoomLabelItem('', 0.5176, 0.1826, fontSize: 11.0, color: Color(0xFF1B5E20)),
     _GroundRoomLabelItem('', 0.3711, 0.1867, fontSize: 9.5, color: Color(0xFF2E7D32)),
     _GroundRoomLabelItem('', 0.3711, 0.3154, fontSize: 9.0, color: Color(0xFF455A64)),
 
-    // Far Left Wing (Stairs at top-left are NOT labeled per user instruction)
+    // Top Left
     _GroundRoomLabelItem('', 0.1641, 0.3001, fontSize: 9.5),
     _GroundRoomLabelItem('', 0.1641, 0.4564, fontSize: 9.5),
     _GroundRoomLabelItem('', 0.1641, 0.6362, fontSize: 9.5),
 
-    // Middle Wing (West of Lobby)
+    // Center Left
     _GroundRoomLabelItem('', 0.3057, 0.1881, fontSize: 10.0),
     _GroundRoomLabelItem('', 0.3057, 0.3250, fontSize: 10.0),
     _GroundRoomLabelItem('', 0.2871, 0.4550, fontSize: 9.0),
@@ -177,13 +175,13 @@ class GroundFloorPainter extends BaseFloorPainter {
     _GroundRoomLabelItem('', 0.3877, 0.5228, fontSize: 8.5),
     _GroundRoomLabelItem('', 0.5176, 0.4772, fontSize: 13.0),
 
-    // Middle Row (East of Lobby)
+    // Middle Right
     _GroundRoomLabelItem('', 0.6445, 0.4564, fontSize: 8.5),
     _GroundRoomLabelItem('', 0.7031, 0.4564, fontSize: 9.0),
     _GroundRoomLabelItem('', 0.7764, 0.4564, fontSize: 9.0),
     _GroundRoomLabelItem('', 0.8350, 0.4564, fontSize: 8.5),
 
-    // Bottom Wing (Stairs at bottom-right are NOT labeled per user instruction)
+    // Bottom Right
     _GroundRoomLabelItem('', 0.2305, 0.6404, fontSize: 8.5),
     _GroundRoomLabelItem('', 0.2305, 0.7068, fontSize: 8.5),
     _GroundRoomLabelItem('', 0.2861, 0.6694, fontSize: 9.5),
@@ -202,7 +200,7 @@ class GroundFloorPainter extends BaseFloorPainter {
     final double w = size.width;
     final double h = size.height;
 
-    // 1. Render ONLY the Room Labeling
+    // 1. Rendering room labels
     for (final item in _roomLabels) {
       drawText(
         canvas,
@@ -214,13 +212,13 @@ class GroundFloorPainter extends BaseFloorPainter {
       );
     }
 
-    // 2. Location Pinning function ONLY (Pathing temporarily removed per user request)
+    // 2. Location Pinning function
     if (selectedLocation != null && !isGroundOffBoundaries(selectedLocation!.dx, selectedLocation!.dy)) {
       drawPin(canvas, Offset(selectedLocation!.dx * size.width, selectedLocation!.dy * size.height));
     }
   }
 
-  // Lookup table mapping enclosed indoor rooms to their physical door & corridor waypoints
+  // Table Mapping
   _GroundDoorData _getGroundRoomDoor(String room, Offset targetNorm) {
     switch (room) {
       case 'FAST OFFICE':
@@ -342,10 +340,9 @@ class GroundFloorPainter extends BaseFloorPainter {
     if (isInsideFastOffice) {
       path.lineTo(target.dx, target.dy);
     } else {
-      // 1. Exit FAST Office through its designated west door onto corridor (X = 647)
       path.lineTo(fastOfficeDoor.dx, fastOfficeDoor.dy);
 
-      // 2. Identify open outdoor courtyard circulation areas (Garden, Bleachers, Terrace)
+      // Outdoor Areas
       final bool isOutsideGarden = roomName == 'GARDEN' ||
           (targetNorm.dx >= 0.450 && targetNorm.dx <= 0.605 && targetNorm.dy < 0.360);
       final bool isOutsideBleachersOrTerrace = roomName == 'BLEACHERS' || roomName == 'TERRACE' ||
@@ -381,20 +378,20 @@ class GroundFloorPainter extends BaseFloorPainter {
         final Offset targetHallway = Offset(doorData.hallway.dx * w, doorData.hallway.dy * h);
 
         if (doorData.hallway.dx >= fastCorrXNorm - 0.02 && doorData.hallway.dy <= crossWalkYNorm + 0.02) {
-          // Top-right wing (JMA, ROTC, CSG, Canteen)
+          // Top right
           path.lineTo(fastCorrX, targetHallway.dy);
           if ((targetHallway.dx - fastCorrX).abs() > 1.0) {
             path.lineTo(targetHallway.dx, targetHallway.dy);
           }
         } else if (doorData.hallway.dy <= crossWalkYNorm + 0.02 && doorData.hallway.dx >= westCorrXNorm - 0.02) {
-          // North row rooms off cross walkway (CR, El Chabacano)
+          // North
           path.lineTo(fastCorrX, crossWalkY);
           path.lineTo(targetHallway.dx, crossWalkY);
           if ((targetHallway.dy - crossWalkY).abs() > 1.0) {
             path.lineTo(targetHallway.dx, targetHallway.dy);
           }
         } else if (doorData.hallway.dx <= westCorrXNorm + 0.02) {
-          // West wing rooms (HM rooms, JPCS, GAD)
+          // Right rooms
           path.lineTo(fastCorrX, crossWalkY);
           path.lineTo(westCorrX, crossWalkY);
           path.lineTo(westCorrX, targetHallway.dy);
@@ -402,7 +399,7 @@ class GroundFloorPainter extends BaseFloorPainter {
             path.lineTo(targetHallway.dx, targetHallway.dy);
           }
         } else if (doorData.hallway.dx >= 0.45 && doorData.hallway.dx <= 0.60 && doorData.hallway.dy <= mainCorrYNorm) {
-          // Central lobby row (Lobby, Registrar, Cashier, MIS)
+          // Center Lobby
           path.lineTo(fastCorrX, crossWalkY);
           path.lineTo(lobbyX, crossWalkY);
           path.lineTo(lobbyX, targetHallway.dy);
@@ -410,7 +407,7 @@ class GroundFloorPainter extends BaseFloorPainter {
             path.lineTo(targetHallway.dx, targetHallway.dy);
           }
         } else {
-          // Main corridor row (Room 108, 107, RDE, Women's CR, OSAS, 119, Accre, Guidance, Dean's, 109, 106, 104, Elec, Guard)
+          // Room 108, 107, RDE, Women's CR, OSAS, 119, Accre, Guidance, Dean's, 109, 106, 104, Elec, Guard
           path.lineTo(fastCorrX, mainCorrY);
           path.lineTo(targetHallway.dx, mainCorrY);
           if ((targetHallway.dy - mainCorrY).abs() > 1.0) {
@@ -418,12 +415,12 @@ class GroundFloorPainter extends BaseFloorPainter {
           }
         }
 
-        // Pass through room door
+        // Boundary
         if ((targetDoor.dx - targetHallway.dx).abs() > 1.0 || (targetDoor.dy - targetHallway.dy).abs() > 1.0) {
           path.lineTo(targetDoor.dx, targetDoor.dy);
         }
 
-        // Connect to pin inside room
+        // To Center the pin
         if ((target.dx - targetDoor.dx).abs() > 1.0 || (target.dy - targetDoor.dy).abs() > 1.0) {
           path.lineTo(target.dx, target.dy);
         }

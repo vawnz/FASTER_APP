@@ -4,7 +4,7 @@ import 'base_map_painter.dart';
 
 bool isSecondOffBoundaries(double x, double y) {
   if (x < 0.0 || x > 1.0 || y < 0.0 || y > 1.0) return true;
-  // Black borders and outer letterbox padding
+  // Out of bound area
   if (x < 0.0350 || x > 0.9750 || y < 0.1250 || y > 0.8100) return true;
   return false;
 }
@@ -13,7 +13,7 @@ String secondRoomAt(double x, double y) {
   if (isSecondOffBoundaries(x, y)) {
     return 'Off Boundaries';
   }
-  // Left Wing Rooms (x < 0.185)
+  // Left Rooms
   if (x < 0.185) {
     if (y < 0.185) return 'FIRE EXIT (Top-Left)';
     if (y < 0.303) return 'ROOM 220';
@@ -23,35 +23,35 @@ String secondRoomAt(double x, double y) {
     return 'Second Floor Hallway';
   }
 
-  // Vertical Corridor: x in [0.185, 0.230], y in [0.106, 0.583]
+  // Hallway 2f
   if (x >= 0.185 && x < 0.230 && y < 0.583) {
     return 'Second Floor Hallway';
   }
 
-  // Inner Library area: x in [0.230, 0.385]
+  // Library
   if (x >= 0.230 && x < 0.385 && y < 0.583) {
     if (x < 0.350 && y < 0.303) return 'LIBRARY EXTENSION';
     return 'LIBRARY';
   }
 
-  // North Row Rooms: y in [0.266, 0.583], x >= 0.385
+  // North Row
   if (y >= 0.266 && y < 0.583 && x >= 0.385) {
     if (x < 0.457) return 'ROOM 211';
     if (x < 0.529) return 'ROOM 209';
     if (x < 0.605) return 'ROOM 207';
-    if (x < 0.655) return 'FIRE EXIT (Central / Middle)';
+    if (x < 0.655) return 'FIRE EXIT (Central)';
     if (x < 0.728) return 'ROOM 205';
     if (x < 0.801) return 'ROOM 203';
     if (x < 0.874) return 'ROOM 202';
     if (x <= 0.965) return 'MEN\'S CR';
   }
 
-  // Main Horizontal Hallway: y in [0.583, 0.644]
+  // 2f Hallway
   if (y >= 0.583 && y < 0.644) {
     return 'Second Floor Hallway';
   }
 
-  // South Row Rooms: y >= 0.644
+  // Bottom Row
   if (y >= 0.644) {
     if (x < 0.322) return 'DEPT.';
     if (x < 0.399) return 'ROOM 214';
@@ -151,8 +151,6 @@ _SecondDoorData _getSecondRoomDoor(String room, Offset targetNorm) {
 
 // SECOND FLOOR PAINTER
 // ============================================================
-// Rendered on top of the 1:1 replica floor plan image.
-// Contains ONLY the labeling (without labeling stairs) and interactive emergency route/pin.
 class SecondFloorPainter extends BaseFloorPainter {
   SecondFloorPainter({
     required super.selectedLocation,
@@ -161,7 +159,7 @@ class SecondFloorPainter extends BaseFloorPainter {
   });
 
   static const List<_RoomLabelItem> _roomLabels = [
-    // Left Wing Rooms (Stairs at top-left are NOT labeled per user instruction)
+    // Left Room 2f
     _RoomLabelItem('', 0.0645, 0.2877, fontSize: 10.0),
     _RoomLabelItem('', 0.0645, 0.3928, fontSize: 10.0),
     _RoomLabelItem('', 0.0645, 0.5021, fontSize: 10.0),
@@ -171,7 +169,7 @@ class SecondFloorPainter extends BaseFloorPainter {
     _RoomLabelItem('', 0.2598, 0.2573, fontSize: 9.5),
     _RoomLabelItem('', 0.2734, 0.4481, fontSize: 11.5),
 
-    // North Row Rooms (Central staircase is NOT labeled per user instruction)
+    // North Row
     _RoomLabelItem('', 0.3877, 0.4910, fontSize: 9.5),
     _RoomLabelItem('', 0.4648, 0.4910, fontSize: 9.5),
     _RoomLabelItem('', 0.5420, 0.4910, fontSize: 9.5),
@@ -180,7 +178,7 @@ class SecondFloorPainter extends BaseFloorPainter {
     _RoomLabelItem('', 0.8613, 0.4910, fontSize: 9.5),
     _RoomLabelItem('', 0.9385, 0.4910, fontSize: 8.5),
 
-    // South Row Rooms (Right staircase is NOT labeled per user instruction)
+    // South Row
     _RoomLabelItem('', 0.1807, 0.6985, fontSize: 10.5),
     _RoomLabelItem('', 0.2822, 0.6985, fontSize: 9.5),
     _RoomLabelItem('', 0.3594, 0.6985, fontSize: 9.5),

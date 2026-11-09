@@ -16,8 +16,7 @@ class GlassBackground extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Ambient Radial Red Glows (Matching Reference)
-          // 1. Top-right ruby glow
+          // Red Widget
           Positioned(
             top: -60,
             right: -60,
@@ -37,7 +36,7 @@ class GlassBackground extends StatelessWidget {
               ),
             ),
           ),
-          // 2. Mid-left organic deep red glow
+          // 2. Mid left red
           Positioned(
             top: 260,
             left: -80,
@@ -57,7 +56,7 @@ class GlassBackground extends StatelessWidget {
               ),
             ),
           ),
-          // 3. Bottom-center crimson glow
+          // 3. Boitom Center
           Positioned(
             bottom: -40,
             right: 40,
