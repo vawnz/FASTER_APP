@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import '../../core/constants.dart';
 import '../../models/student_profile.dart';
 import '../../widgets/resq_logo.dart';
-import '../admin/admin_heat_map_painter.dart';
-import '../admin/models/distress_signal.dart';
 import '../admin/services/distress_sync_service.dart';
 import 'campus_map_data.dart';
 import 'ground_floor.dart';
@@ -23,7 +21,7 @@ class MapHomePage extends StatefulWidget {
   State<MapHomePage> createState() => _MapHomePageState();
 }
 
-class _MapHomePageState extends State<MapHomePage> with SingleTickerProviderStateMixin {
+class _MapHomePageState extends State<MapHomePage> {
   int floor = 0;
   Offset? selectedLocation;
   String? selectedRoom;
@@ -33,47 +31,18 @@ class _MapHomePageState extends State<MapHomePage> with SingleTickerProviderStat
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
-  late final AnimationController _pulseController;
-  List<DistressSignal> _activeSignals = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    );
-    if (WidgetsBinding.instance.runtimeType.toString() != 'AutomatedTestWidgetsFlutterBinding') {
-      _pulseController.repeat();
-    } else {
-      _pulseController.value = 0.5;
-    }
-    _activeSignals = DistressSyncService.activeSignalsNotifier.value;
-    DistressSyncService.activeSignalsNotifier.addListener(_onSignalsUpdated);
-    DistressSyncService.initialize();
-  }
-
-  void _onSignalsUpdated() {
-    if (mounted) {
-      setState(() {
-        _activeSignals = DistressSyncService.activeSignalsNotifier.value;
-      });
-    }
-  }
-
   @override
   void dispose() {
-    _pulseController.dispose();
-    DistressSyncService.activeSignalsNotifier.removeListener(_onSignalsUpdated);
     _searchController.dispose();
     super.dispose();
   }
 
   void selectCampusLocation(CampusLocation loc) {
-    if (isFloorOffBoundaries(loc.floor, loc.coordinates.dx, loc.coordinates.dy)) {
+    final area = findAreaByName(loc.floor, loc.name) ??
+        findAreaAt(loc.floor, loc.coordinates.dx, loc.coordinates.dy);
+    if (area == null && isFloorOffBoundaries(loc.floor, loc.coordinates.dx, loc.coordinates.dy)) {
       return;
     }
-    final area = findAreaAt(loc.floor, loc.coordinates.dx, loc.coordinates.dy);
     final targetLoc = area != null ? area.normalizedCenter : loc.coordinates;
 
     setState(() {
@@ -101,10 +70,10 @@ class _MapHomePageState extends State<MapHomePage> with SingleTickerProviderStat
   }
 
   void selectLocation(Offset location, String name) {
-    if (isFloorOffBoundaries(floor, location.dx, location.dy) || name == 'Off Boundaries') {
+    final area = findAreaAt(floor, location.dx, location.dy) ?? findAreaByName(floor, name);
+    if (area == null && (isFloorOffBoundaries(floor, location.dx, location.dy) || name == 'Off Boundaries')) {
       return;
     }
-    final area = findAreaAt(floor, location.dx, location.dy);
     final targetLocation = area != null ? area.normalizedCenter : location;
     final targetName = area != null ? area.name : name;
 
@@ -190,9 +159,13 @@ class _MapHomePageState extends State<MapHomePage> with SingleTickerProviderStat
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                backgroundColor: const Color(0xFFB71C1C),
+                                backgroundColor: const Color(0xFFD32F2F),
                                 behavior: SnackBarBehavior.floating,
                                 duration: const Duration(seconds: 4),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  side: const BorderSide(color: Color(0xFFFF8A80), width: 1.2),
+                                ),
                                 content: Row(
                                   children: [
                                     const Icon(Icons.emergency_share, color: Colors.white, size: 20),
@@ -200,7 +173,10 @@ class _MapHomePageState extends State<MapHomePage> with SingleTickerProviderStat
                                     Expanded(
                                       child: Text(
                                         'DISTRESS SIGNAL TRANSMITTED: FAST Officers notified at $room.',
-                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -368,50 +344,74 @@ class _MapHomePageState extends State<MapHomePage> with SingleTickerProviderStat
                           onTapDown: (details) {
                             final x = details.localPosition.dx / constraints.maxWidth;
                             final y = details.localPosition.dy / constraints.maxHeight;
-                            final isOff = floor == 0 ? isGroundOffBoundaries(x, y) : isSecondOffBoundaries(x, y);
-                            if (isOff) {
-                              ScaffoldMessenger.of(context).clearSnackBars();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Row(
-                                    children: [
-                                      Icon(Icons.block, color: Colors.white, size: 18),
-                                      SizedBox(width: 8),
-                                      Text('Location pinning is disabled in out-of-boundary areas.'),
-                                    ],
-                                  ),
-                                  backgroundColor: Color(0xFF1A1A1A),
-                                  duration: Duration(seconds: 2),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                              return;
-                            }
                             final area = findAreaAt(floor, x, y);
                             if (area != null) {
                               if (area.category == CampusAreaCategory.outOfBound) {
                                 ScaffoldMessenger.of(context).clearSnackBars();
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Row(
+                                  SnackBar(
+                                    content: const Row(
                                       children: [
-                                        Icon(Icons.block, color: Colors.white, size: 18),
+                                        Icon(Icons.block, color: Color(0xFFFF8A80), size: 18),
                                         SizedBox(width: 8),
-                                        Text('Location pinning is disabled in out-of-boundary areas.'),
+                                        Expanded(
+                                          child: Text(
+                                            'Location pinning is disabled in out-of-boundary areas.',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
                                       ],
                                     ),
-                                    backgroundColor: Color(0xFF1A1A1A),
-                                    duration: Duration(seconds: 2),
+                                    backgroundColor: const Color(0xFF282C3E),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      side: const BorderSide(color: Color(0xFFFF5252), width: 1.2),
+                                    ),
+                                    duration: const Duration(seconds: 2),
                                     behavior: SnackBarBehavior.floating,
                                   ),
                                 );
                                 return;
                               }
                               selectArea(area);
-                            } else {
-                              final room = floor == 0 ? groundRoomAt(x, y) : secondRoomAt(x, y);
-                              selectLocation(Offset(x, y), room);
+                              return;
                             }
+                            final isOff = floor == 0 ? isGroundOffBoundaries(x, y) : isSecondOffBoundaries(x, y);
+                            if (isOff) {
+                              ScaffoldMessenger.of(context).clearSnackBars();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Row(
+                                    children: [
+                                      Icon(Icons.block, color: Color(0xFFFF8A80), size: 18),
+                                      SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'Location pinning is disabled in out-of-boundary areas.',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  backgroundColor: const Color(0xFF282C3E),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                    side: const BorderSide(color: Color(0xFFFF5252), width: 1.2),
+                                  ),
+                                  duration: const Duration(seconds: 2),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                              return;
+                            }
+                            final room = floor == 0 ? groundRoomAt(x, y) : secondRoomAt(x, y);
+                            selectLocation(Offset(x, y), room);
                           },
                           child: Stack(
                             children: [
@@ -425,22 +425,18 @@ class _MapHomePageState extends State<MapHomePage> with SingleTickerProviderStat
                                 ),
                               ),
                               Positioned.fill(
-                                child: AnimatedBuilder(
-                                  animation: _pulseController,
-                                  builder: (context, _) {
-                                    return CustomPaint(
-                                      painter: AdminHeatMapPainter(
-                                        floor: floor,
-                                        heatPoints: computeDynamicHeatPoints(_activeSignals, floor),
-                                        distressSignals: _activeSignals,
-                                        pulseValue: _pulseController.value,
-                                        pinnedLocation: selectedLocation,
-                                        pinnedRoom: selectedRoom,
-                                        showHeatMap: true,
-                                        showBeacons: true,
-                                      ),
-                                    );
-                                  },
+                                child: CustomPaint(
+                                  painter: floor == 0
+                                      ? GroundFloorPainter(
+                                          selectedLocation: selectedLocation,
+                                          selectedRoom: selectedRoom,
+                                          showEmergencyPath: false,
+                                        )
+                                      : SecondFloorPainter(
+                                          selectedLocation: selectedLocation,
+                                          selectedRoom: selectedRoom,
+                                          showEmergencyPath: false,
+                                        ),
                                 ),
                               ),
                             ],

@@ -312,10 +312,15 @@ class _AuthSplashScreenState extends State<AuthSplashScreen>
               });
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  backgroundColor: const Color(0xFFC62828),
+                  backgroundColor: const Color(0xFFD32F2F),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    side: const BorderSide(color: Color(0xFFFF8A80), width: 1.2),
+                  ),
                   content: Text(
                     result.errorMessage ?? 'Login failed. Please check credentials.',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                 ),
               );
@@ -331,12 +336,20 @@ class _AuthSplashScreenState extends State<AuthSplashScreen>
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                backgroundColor: isAdmin ? const Color(0xFFB71C1C) : const Color(0xFF2E7D32),
+                backgroundColor: isAdmin ? const Color(0xFFD32F2F) : const Color(0xFF2E7D32),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: BorderSide(
+                    color: isAdmin ? const Color(0xFFFF8A80) : const Color(0xFF69F0AE),
+                    width: 1.2,
+                  ),
+                ),
                 content: Text(
                   isAdmin
                       ? 'FAST Officer verified! Welcome to HQ Monitoring.'
                       : 'Sign in successful! Welcome back, ${currentStudent.firstName}!',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                 ),
                 duration: const Duration(milliseconds: 1000),
               ),
@@ -401,10 +414,15 @@ class _AuthSplashScreenState extends State<AuthSplashScreen>
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    backgroundColor: const Color(0xFFC62828),
+                    backgroundColor: const Color(0xFFD32F2F),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      side: const BorderSide(color: Color(0xFFFF8A80), width: 1.2),
+                    ),
                     content: Text(
                       result.errorMessage ?? 'Sign up failed.',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                     ),
                   ),
                 );
@@ -418,9 +436,14 @@ class _AuthSplashScreenState extends State<AuthSplashScreen>
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   backgroundColor: const Color(0xFF2E7D32),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    side: const BorderSide(color: Color(0xFF69F0AE), width: 1.2),
+                  ),
                   content: Text(
                     'Account Created! Welcome to FASTER, ${currentStudent.firstName}!',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                   duration: const Duration(milliseconds: 1000),
                 ),
@@ -703,8 +726,23 @@ class _AuthSplashScreenState extends State<AuthSplashScreen>
                                       GestureDetector(
                                         onTap: () {
                                           ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(
-                                              content: Text('Password reset instructions sent.'),
+                                            SnackBar(
+                                              backgroundColor: const Color(0xFF282C3E),
+                                              behavior: SnackBarBehavior.floating,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(14),
+                                                side: BorderSide(
+                                                  color: Colors.white.withValues(alpha: 0.25),
+                                                  width: 1.2,
+                                                ),
+                                              ),
+                                              content: const Text(
+                                                'Password reset instructions sent.',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
                                             ),
                                           );
                                         },

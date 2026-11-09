@@ -15,12 +15,19 @@ class DistressSyncService {
   static final ValueNotifier<DistressSignal?> newAlertNotifier =
       ValueNotifier<DistressSignal?>(null);
 
+  static final ValueNotifier<DistressSignal?> focusedSignalNotifier =
+      ValueNotifier<DistressSignal?>(null);
+
   static RealtimeChannel? _realtimeChannel;
   static Timer? _pollingTimer;
   static bool _isInitialized = false;
   static final Set<String> _knownSignalIds = <String>{};
   static final Set<String> _resolvedStudentIds = <String>{};
   static final Set<String> _resolvedSignalIds = <String>{};
+  static final Map<String, String> _resolvedStudentReqTimes = <String, String>{};
+
+  static String _signalSignature(DistressSignal s) =>
+      '${s.studentId}_${s.floor}_${s.roomName}_${s.reqTime}';
 
   /// Initialize real-time synchronization and polling
   static Future<void> initialize() async {
@@ -89,10 +96,18 @@ class DistressSyncService {
 
     // 1. Immediately reflect in memory for instant local UI responsiveness
     _knownSignalIds.add(signalId);
+    _knownSignalIds.add(_signalSignature(distress));
     _resolvedStudentIds.remove(studentId);
+    _resolvedStudentReqTimes.remove(studentId);
     _resolvedSignalIds.remove(signalId);
-    activeSignalsNotifier.value = [distress, ...activeSignalsNotifier.value];
-    historyRecordsNotifier.value = [historyItem, ...historyRecordsNotifier.value];
+    activeSignalsNotifier.value = [
+      distress,
+      ...activeSignalsNotifier.value.where((s) => s.studentId != studentId),
+    ];
+    historyRecordsNotifier.value = [
+      historyItem,
+      ...historyRecordsNotifier.value.where((h) => h.studentId != studentId),
+    ];
 
     // 2. Trigger high-priority live alert notification for any open admin session
     triggerAlertNotification(distress);
@@ -127,6 +142,7 @@ class DistressSyncService {
       SystemSound.play(SystemSoundType.alert);
     } catch (_) {}
 
+    focusedSignalNotifier.value = signal;
     newAlertNotifier.value = signal;
   }
 
@@ -143,34 +159,77 @@ class DistressSyncService {
 
       final activeSignals = await SupabaseService.fetchActiveDistressSignals();
 
+      final existingActive = activeSignalsNotifier.value;
+      final Map<String, DistressSignal> localActiveByStudent = {
+        for (final s in existingActive)
+          if (s.roomName != 'Campus Grounds') s.studentId: s,
+      };
+
       // Exclude any distress signals that were resolved locally or in tombstone
       final activeFiltered = <DistressSignal>[];
-      for (final s in activeSignals) {
-        if (_resolvedSignalIds.contains(s.id) || s.status == DistressStatus.resolved) {
+      for (final rawSig in activeSignals) {
+        if (rawSig.status == DistressStatus.resolved) {
           continue;
         }
-        // If a student who was previously resolved sends a new active distress signal, lift the tombstone
-        if (_resolvedStudentIds.contains(s.studentId)) {
-          _resolvedStudentIds.remove(s.studentId);
+        // Enrich with local floor/room if DB record temporarily had default Campus Grounds
+        DistressSignal s = rawSig;
+        if (s.roomName == 'Campus Grounds' && localActiveByStudent.containsKey(s.studentId)) {
+          final local = localActiveByStudent[s.studentId]!;
+          s = DistressSignal(
+            id: s.id,
+            studentId: s.studentId,
+            studentName: s.studentName,
+            program: s.program,
+            yearLevel: s.yearLevel,
+            phoneNumber: s.phoneNumber,
+            floor: local.floor,
+            roomName: local.roomName,
+            position: local.position,
+            emergencyType: local.emergencyType,
+            urgency: s.urgency,
+            status: s.status,
+            reqTime: s.reqTime,
+            timestamp: s.timestamp,
+          );
         }
+
+        if (_resolvedStudentIds.contains(s.studentId)) {
+          final resolvedTime = _resolvedStudentReqTimes[s.studentId];
+          if (resolvedTime != null && resolvedTime == s.reqTime) {
+            continue;
+          }
+          // Student sent a brand-new distress signal with a new timestamp; lift tombstones
+          _resolvedStudentIds.remove(s.studentId);
+          _resolvedStudentReqTimes.remove(s.studentId);
+          _resolvedSignalIds.remove(s.id);
+        } else if (_resolvedSignalIds.contains(s.id)) {
+          continue;
+        }
+
         activeFiltered.add(s);
       }
 
       // Check for any newly incoming distress signal not seen before
       for (final sig in activeFiltered) {
-        if (!_knownSignalIds.contains(sig.id)) {
+        final sigKey = _signalSignature(sig);
+        if (!_knownSignalIds.contains(sig.id) && !_knownSignalIds.contains(sigKey)) {
           _knownSignalIds.add(sig.id);
+          _knownSignalIds.add(sigKey);
           triggerAlertNotification(sig);
+        } else {
+          _knownSignalIds.add(sig.id);
+          _knownSignalIds.add(sigKey);
         }
       }
 
       // Merge with any in-memory active signals not yet resolved
-      final existingActive = activeSignalsNotifier.value;
       final Set<String> loadedIds = activeFiltered.map((s) => s.id).toSet();
+      final Set<String> loadedActiveStudentIds = activeFiltered.map((s) => s.studentId).toSet();
       final List<DistressSignal> merged = [
         ...activeFiltered,
         ...existingActive.where((s) =>
             !loadedIds.contains(s.id) &&
+            !loadedActiveStudentIds.contains(s.studentId) &&
             s.status != DistressStatus.resolved &&
             !_resolvedSignalIds.contains(s.id)),
       ];
@@ -231,6 +290,7 @@ class DistressSyncService {
     for (final s in activeSignalsNotifier.value) {
       if (s.studentId == studentId || (signalId != null && s.id == signalId)) {
         _resolvedStudentIds.add(s.studentId);
+        _resolvedStudentReqTimes[s.studentId] = s.reqTime;
         _resolvedSignalIds.add(s.id);
       }
     }
@@ -288,6 +348,7 @@ class DistressSyncService {
   static Future<bool> clearHistory() async {
     historyRecordsNotifier.value = [];
     _resolvedStudentIds.clear();
+    _resolvedStudentReqTimes.clear();
     _resolvedSignalIds.clear();
     final success = await SupabaseService.clearEmergencyHistory();
     return success;

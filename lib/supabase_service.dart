@@ -153,6 +153,8 @@ class SupabaseService {
 
   /// Maps a Supabase `fast_stud_info` record into a [StudentProfile]
   static StudentProfile studentFromDb(Map<String, dynamic> row) {
+    final rawRole = row['user_role']?.toString().trim() ?? 'STUDENT';
+    final normalizedRole = (rawRole.isEmpty || rawRole.startsWith('{')) ? 'STUDENT' : rawRole;
     return StudentProfile(
       studentId: row['stud_id']?.toString() ?? '',
       firstName: row['stud_fn']?.toString() ?? '',
@@ -163,7 +165,7 @@ class SupabaseService {
       section: dbToSection(row['stud_section']?.toString()),
       username: row['stud_user']?.toString() ?? '',
       phoneNumber: row['stud_phoneno']?.toString() ?? '09123456789',
-      userRole: row['user_role']?.toString() ?? 'STUDENT',
+      userRole: normalizedRole,
     );
   }
 
@@ -357,7 +359,17 @@ class SupabaseService {
       final int? idNum = int.tryParse(studentId.replaceAll(RegExp(r'\D'), ''));
       final int safeId = idNum ?? 202601234;
 
-      // 1. Ensure student exists in fast_stud_info to prevent foreign key error 23503
+      final meta = jsonEncode({
+        'floor': floor,
+        'room': roomName,
+        'x': double.parse(posX.toStringAsFixed(4)),
+        'y': double.parse(posY.toStringAsFixed(4)),
+        'type': emergencyType,
+        'phone': phoneNumber,
+      });
+
+      // 1. Ensure student exists in fast_stud_info to prevent foreign key error 23503,
+      // and store meta in user_role so any DB trigger copies the exact floor & room atomically
       try {
         final existing = await cli
             .from('fast_stud_info')
@@ -380,13 +392,14 @@ class SupabaseService {
             'stud_yrlevel': yearLevel,
             'stud_section': sectionToDb(section),
             'stud_phoneno': phoneNumber.length > 30 ? phoneNumber.substring(0, 30) : phoneNumber,
-            'user_role': 'STUDENT',
+            'user_role': meta,
             'is_distress': true,
           });
         } else {
           await cli.from('fast_stud_info').update({
             'is_distress': true,
             'stud_status': 'ACTIVE DISTRESS',
+            'user_role': meta,
           }).eq('stud_id', safeId);
         }
       } catch (e) {
@@ -404,16 +417,7 @@ class SupabaseService {
         debugPrint('[FASTER] Notice writing to user_request: $e');
       }
 
-      // 3. Upsert into fast_stud_record (handles unique constraint on stud_id)
-      final meta = jsonEncode({
-        'floor': floor,
-        'room': roomName,
-        'x': posX,
-        'y': posY,
-        'type': emergencyType,
-        'phone': phoneNumber,
-      });
-
+      // 3. Upsert into fast_stud_record using only valid schema columns
       final recordPayload = {
         'stud_id': safeId,
         'stud_name': studentName.length > 90 ? studentName.substring(0, 90) : studentName,
@@ -422,13 +426,12 @@ class SupabaseService {
         'stud_section': sectionToDb(section),
         'user_role': meta,
         'stud_status': 'ACTIVE DISTRESS',
-        'room_name': roomName,
-        'floor': floor,
         'stud_reqtime': DateTime.now().toIso8601String(),
       };
 
       try {
         await cli.from('fast_stud_record').upsert(recordPayload, onConflict: 'stud_id');
+        await cli.from('fast_stud_record').update(recordPayload).eq('stud_id', safeId);
       } catch (e) {
         debugPrint('[FASTER] Upsert notice, falling back to direct update: $e');
         try {
@@ -495,6 +498,22 @@ class SupabaseService {
     final Set<String> seenStudentIds = <String>{};
 
     try {
+      final Map<String, String> infoMetaByStudId = {};
+      try {
+        final List<dynamic> infoRows = await cli
+            .from('fast_stud_info')
+            .select('stud_id, user_role')
+            .eq('is_distress', true);
+        for (final info in infoRows) {
+          final m = Map<String, dynamic>.from(info as Map);
+          final sid = m['stud_id']?.toString();
+          final role = m['user_role']?.toString().trim() ?? '';
+          if (sid != null && role.startsWith('{')) {
+            infoMetaByStudId[sid] = role;
+          }
+        }
+      } catch (_) {}
+
       final List<dynamic> records = await cli
           .from('fast_stud_record')
           .select()
@@ -502,7 +521,13 @@ class SupabaseService {
           .order('stud_reqtime', ascending: false);
 
       for (final r in records) {
-        final signal = DistressSignal.fromMap(Map<String, dynamic>.from(r as Map));
+        final rowMap = Map<String, dynamic>.from(r as Map);
+        final sid = rowMap['stud_id']?.toString();
+        final curRole = rowMap['user_role']?.toString().trim() ?? '';
+        if (!curRole.startsWith('{') && sid != null && infoMetaByStudId.containsKey(sid)) {
+          rowMap['user_role'] = infoMetaByStudId[sid];
+        }
+        final signal = DistressSignal.fromMap(rowMap);
         if (!seenStudentIds.contains(signal.studentId)) {
           seenStudentIds.add(signal.studentId);
           active.add(signal);
@@ -528,9 +553,29 @@ class SupabaseService {
           .select()
           .order('user_reqtime', ascending: false);
 
+      final Map<String, Map<String, dynamic>> recordByStudId = {};
+      try {
+        final List<dynamic> records = await cli.from('fast_stud_record').select();
+        for (final rec in records) {
+          final map = Map<String, dynamic>.from(rec as Map);
+          final sid = map['stud_id']?.toString();
+          if (sid != null) {
+            recordByStudId[sid] = map;
+          }
+        }
+      } catch (_) {}
+
       final List<Map<String, dynamic>> results = [];
       for (final r in requests) {
-        results.add(Map<String, dynamic>.from(r as Map));
+        final reqMap = Map<String, dynamic>.from(r as Map);
+        final sid = reqMap['stud_id']?.toString();
+        if (sid != null && recordByStudId.containsKey(sid)) {
+          final rec = recordByStudId[sid]!;
+          reqMap['user_role'] ??= rec['user_role'];
+          reqMap['stud_status'] ??= rec['stud_status'];
+          reqMap['stud_yrlevel'] ??= rec['stud_yrlevel'];
+        }
+        results.add(reqMap);
       }
 
       return results;

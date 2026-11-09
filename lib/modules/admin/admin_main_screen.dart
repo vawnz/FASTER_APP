@@ -51,6 +51,7 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
   }
 
   void _viewAlertOnMap(DistressSignal signal) {
+    DistressSyncService.focusedSignalNotifier.value = signal;
     _dismissAlert();
     setState(() {
       _selectedTab = 0; // Go to HOME tab

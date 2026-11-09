@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../../map/campus_map_data.dart';
 
 enum DistressUrgency { critical, high, moderate }
 enum DistressStatus { active, dispatched, resolved }
@@ -92,6 +93,22 @@ class DistressSignal {
             if (decoded['phone'] != null) phone = decoded['phone'].toString();
           }
         } catch (_) {}
+      }
+    }
+
+    if (floorVal == 0 && _isSecondFloorRoomName(room)) {
+      floorVal = 1;
+    }
+
+    // Accurately resolve map coordinates from the room's blueprint area if needed
+    final matchedArea = findAreaByName(floorVal, room) ?? findAreaAcrossFloorsByName(room);
+    if (matchedArea != null) {
+      if (floorVal == 0 && matchedArea.floor == 1 && _isSecondFloorRoomName(matchedArea.name)) {
+        floorVal = 1;
+      }
+      if ((posX == 0.5 && posY == 0.5) || !room.toUpperCase().contains('HALLWAY')) {
+        posX = matchedArea.normalizedCenter.dx;
+        posY = matchedArea.normalizedCenter.dy;
       }
     }
 
@@ -191,6 +208,10 @@ class EmergencyHistoryRecord {
       }
     }
 
+    if (floorVal == 0 && _isSecondFloorRoomName(roomName)) {
+      floorVal = 1;
+    }
+
     final rawStatus = (map['stud_status'] ?? map['status'])?.toString().toUpperCase() ?? '';
     String status = 'RESOLVED';
     if (rawStatus.contains('ACTIVE')) {
@@ -223,38 +244,36 @@ class EmergencyHistoryRecord {
 
 }
 
+bool _isSecondFloorRoomName(String room) {
+  final upper = room.trim().toUpperCase();
+  return upper.startsWith('ROOM 2') ||
+      upper.contains('2F ') ||
+      upper.contains('SECOND FLOOR') ||
+      upper == 'LIBRARY' ||
+      upper == 'LIBRARY EXTENSION' ||
+      upper == 'MEN\'S CR' ||
+      upper == 'DEPT.' ||
+      upper.contains('TOP-LEFT') ||
+      upper.contains('CENTRAL / MIDDLE') ||
+      upper.contains('BOTTOM-RIGHT');
+}
+
 /// Heat Map via simultaneous distress signals per location:
 /// - 1 signal: Green pulse (#00BF63)
 /// - 2 signals: Orange pulse (#FF715F)
 /// - 3 or more signals: Red pulse (#E50914)
 List<HeatPoint> computeDynamicHeatPoints(List<DistressSignal> signals, int floor) {
-  final floorSignals = signals.where((s) => s.floor == floor && s.status != DistressStatus.resolved).toList();
+  final clusters = computeLocationClusters(signals, floor);
 
-  final Map<String, List<DistressSignal>> grouped = {};
-  for (final s in floorSignals) {
-    final key = s.roomName.trim().toUpperCase();
-    grouped.putIfAbsent(key, () => []).add(s);
-  }
-
-  return grouped.values.map((list) {
-    final first = list.first;
-    final count = list.length;
-    Color pulseColor;
-    if (count <= 1) {
-      pulseColor = const Color(0xFF00BF63); // Green pulse for 1
-    } else if (count == 2) {
-      pulseColor = const Color(0xFFFF715F); // Orange pulse for 2
-    } else {
-      pulseColor = const Color(0xFFE50914); // Red pulse for 3 or more
-    }
-
+  return clusters.map((cluster) {
+    final count = cluster.count;
     final double intensity = count == 1 ? 0.65 : (count == 2 ? 0.85 : 1.0);
     return HeatPoint(
-      normX: first.position.dx,
-      normY: first.position.dy,
+      normX: cluster.position.dx,
+      normY: cluster.position.dy,
       intensity: intensity,
       radius: 95.0 + (count - 1) * 20.0,
-      color: pulseColor,
+      color: cluster.pulseColor,
       count: count,
     );
   }).toList();

@@ -104,13 +104,18 @@ class _AdminHistoryTabState extends State<AdminHistoryTab> {
                   _isLoading = false;
                 });
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    backgroundColor: Color(0xFF2E7D32),
-                    content: Text(
-                      'Emergency history cleared successfully.',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                  SnackBar(
+                    backgroundColor: const Color(0xFF2E7D32),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      side: const BorderSide(color: Color(0xFF69F0AE), width: 1.2),
                     ),
-                    duration: Duration(seconds: 2),
+                    content: const Text(
+                      'Emergency history cleared successfully.',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                    duration: const Duration(seconds: 2),
                   ),
                 );
               }

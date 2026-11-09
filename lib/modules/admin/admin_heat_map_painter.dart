@@ -27,27 +27,24 @@ class AdminHeatMapPainter extends BaseFloorPainter {
     this.showHeatMap = true,
     this.showBeacons = true,
   }) : super(
-          selectedLocation: pinnedLocation ?? selectedSignal?.position,
-          selectedRoom: pinnedRoom ?? selectedSignal?.roomName,
+          selectedLocation: pinnedLocation,
+          selectedRoom: pinnedRoom,
           showEmergencyPath: false,
         );
 
   @override
   void paint(Canvas canvas, Size size) {
     // 1. Render Base Floor Room Labels & Dropped Pin from Ground / Second floor
-    final effectiveLocation = pinnedLocation ?? selectedSignal?.position;
-    final effectiveRoom = pinnedRoom ?? selectedSignal?.roomName;
-
     if (floor == 0) {
       GroundFloorPainter(
-        selectedLocation: effectiveLocation,
-        selectedRoom: effectiveRoom,
+        selectedLocation: pinnedLocation,
+        selectedRoom: pinnedRoom,
         showEmergencyPath: false,
       ).paint(canvas, size);
     } else {
       SecondFloorPainter(
-        selectedLocation: effectiveLocation,
-        selectedRoom: effectiveRoom,
+        selectedLocation: pinnedLocation,
+        selectedRoom: pinnedRoom,
         showEmergencyPath: false,
       ).paint(canvas, size);
     }
@@ -188,14 +185,9 @@ class AdminHeatMapPainter extends BaseFloorPainter {
       // Single response from an area or room: display the student's name on the map
       label = firstSig.studentName;
     } else {
-      // Two or more responses: display only response count on the map;
-      // names appear when the area is tapped (selected) by the admin
-      if (isSelected) {
-        final names = cluster.signals.map((s) => (s as DistressSignal).studentName).join(', ');
-        label = '${cluster.count} Responses: $names';
-      } else {
-        label = '${cluster.count} Responses';
-      }
+      // Two or more responses: display only the response count on the map;
+      // the student names appear in the incident sheet when tapped by the admin
+      label = '${cluster.count} Responses';
     }
 
     final textSpan = TextSpan(

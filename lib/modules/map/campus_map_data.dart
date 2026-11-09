@@ -736,6 +736,50 @@ CampusMapArea? findAreaAt(int floor, double nx, double ny) {
   return null;
 }
 
+/// Finds a campus area on the specified floor by its room/location name
+CampusMapArea? findAreaByName(int floor, String name) {
+  final clean = name.trim().toUpperCase();
+  if (clean.isEmpty || clean == 'CAMPUS GROUNDS' || clean == 'CAMPUS' || clean == 'OFF BOUNDARIES') {
+    return null;
+  }
+  final areas = getAreasForFloor(floor);
+
+  // 1. Exact name match first
+  for (final area in areas) {
+    if (area.name.trim().toUpperCase() == clean) {
+      return area;
+    }
+  }
+
+  // 2. Common alias matching
+  if (clean == 'ROOM 108 BODEGA') {
+    for (final area in areas) {
+      if (area.name.toUpperCase() == 'ROOM 108') return area;
+    }
+  }
+  if (clean == 'COMLAB 1' || clean.contains('107')) {
+    for (final area in areas) {
+      if (area.name.toUpperCase().contains('107')) return area;
+    }
+  }
+
+  // 3. Substring match (avoid matching generic "CR" to "WOMEN'S CR" / "MEN'S CR")
+  if (clean != 'CR') {
+    for (final area in areas) {
+      final an = area.name.trim().toUpperCase();
+      if (an != 'CR' && (an.contains(clean) || clean.contains(an))) {
+        return area;
+      }
+    }
+  }
+  return null;
+}
+
+/// Finds a campus area across both Second Floor and Ground Floor by room/location name
+CampusMapArea? findAreaAcrossFloorsByName(String name) {
+  return findAreaByName(1, name) ?? findAreaByName(0, name);
+}
+
 /// Determines whether a location is outside the allowable pinnable boundary
 bool isFloorOffBoundaries(int floor, double nx, double ny) {
   if (nx < 0.0 || nx > 1.0 || ny < 0.0 || ny > 1.0) return true;
@@ -812,22 +856,33 @@ List<LocationDistressCluster> computeLocationClusters(List<dynamic> signals, int
     grouped.putIfAbsent(key, () => []).add(sig);
   }
 
-  final areas = getAreasForFloor(floor);
   final List<LocationDistressCluster> clusters = [];
 
   for (final entry in grouped.entries) {
     final roomKey = entry.key;
     final sigs = entry.value;
     final int count = sigs.length;
+    final dynamic firstSig = sigs.first;
+    final dynamic p = firstSig.position;
 
-    // Find matching area by name
+    // Find matching area:
+    // 1) If the signal has non-default coordinates, check if those coordinates lie inside an area on this floor
+    //    (especially disambiguating hallways that share a name)
     CampusMapArea? matchedArea;
-    for (final area in areas) {
-      final an = area.name.toUpperCase();
-      if (an == roomKey || an.contains(roomKey) || roomKey.contains(an)) {
-        matchedArea = area;
-        break;
+    if (p is Offset && (p.dx != 0.5 || p.dy != 0.5)) {
+      final areaAtCoord = findAreaAt(floor, p.dx, p.dy);
+      if (areaAtCoord != null &&
+          (areaAtCoord.name.toUpperCase() == roomKey || roomKey.contains('HALLWAY'))) {
+        matchedArea = areaAtCoord;
       }
+    }
+
+    // 2) Otherwise look up by exact or alias name on this floor
+    matchedArea ??= findAreaByName(floor, roomKey);
+
+    // 3) If still null and coordinates are non-default, check findAreaAt
+    if (matchedArea == null && p is Offset && (p.dx != 0.5 || p.dy != 0.5)) {
+      matchedArea = findAreaAt(floor, p.dx, p.dy);
     }
 
     Offset normPos;
@@ -835,21 +890,17 @@ List<LocationDistressCluster> computeLocationClusters(List<dynamic> signals, int
     if (matchedArea != null) {
       normPos = matchedArea.normalizedCenter;
       pixelCenter = matchedArea.center;
+    } else if (p is Offset) {
+      normPos = p;
+      pixelCenter = Offset(p.dx * 1024.0, p.dy * 723.0);
     } else {
-      final dynamic firstSig = sigs.first;
-      final dynamic p = firstSig.position;
-      if (p is Offset) {
-        normPos = p;
-        pixelCenter = Offset(p.dx * 1024.0, p.dy * 723.0);
-      } else {
-        normPos = const Offset(0.5, 0.5);
-        pixelCenter = const Offset(512.0, 361.5);
-      }
+      normPos = const Offset(0.5, 0.5);
+      pixelCenter = const Offset(512.0, 361.5);
     }
 
     clusters.add(
       LocationDistressCluster(
-        locationName: sigs.first.roomName?.toString() ?? roomKey,
+        locationName: matchedArea?.name ?? (sigs.first.roomName?.toString() ?? roomKey),
         position: normPos,
         center: pixelCenter,
         count: count,

@@ -764,4 +764,65 @@ void main() {
     expect(clusterThree.first.count, 3);
     expect(clusterThree.first.pulseColor, const Color(0xFFE50914)); // Red for 3+
   });
+
+  testWidgets('Second Floor distress signal is received by Admin on Second Floor and switches map floor automatically',
+      (WidgetTester tester) async {
+    // 1. Verify DistressSignal.fromMap & EmergencyHistoryRecord.fromMap decode 2nd floor metadata accurately
+    final dbRow = {
+      'id': 97,
+      'stud_id': '202210118',
+      'stud_name': 'Eiman C. Macahilig',
+      'stud_program': '(BSCS) Bachelor of Science in Computer Science',
+      'stud_yrlevel': '4th Year',
+      'stud_section': 'Section B',
+      'stud_reqtime': '2026-11-09 19:00:00',
+      'stud_status': 'ACTIVE DISTRESS',
+      'user_role': '{"room":"ROOM 218","floor":1,"x":0.118,"y":0.502,"type":"Emergency Distress Call","phone":"09123456789"}',
+    };
+    final parsedSignal = DistressSignal.fromMap(dbRow);
+    expect(parsedSignal.floor, 1);
+    expect(parsedSignal.roomName, 'ROOM 218');
+    expect(parsedSignal.position.dx, closeTo(68.0 / 1024.0, 0.001));
+    expect(parsedSignal.position.dy, closeTo(364.0 / 723.0, 0.001));
+
+    final parsedHistory = EmergencyHistoryRecord.fromMap(dbRow);
+    expect(parsedHistory.floor, 1);
+    expect(parsedHistory.roomName, 'ROOM 218');
+
+    // 2. Render AdminHomeTab and send a 2nd Floor distress signal
+    await DistressSyncService.clearHistory();
+    DistressSyncService.activeSignalsNotifier.value = [];
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: AdminHomeTab(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await DistressSyncService.sendDistressSignal(
+      studentId: '202210118',
+      studentName: 'Eiman C. Macahilig',
+      program: '(BSCS) Bachelor of Science in Computer Science',
+      yearLevel: '4th Year',
+      phoneNumber: '09123456789',
+      roomName: 'ROOM 218',
+      floor: 1,
+      posX: 0.118,
+      posY: 0.502,
+      emergencyType: 'Emergency Distress Call',
+    );
+    await tester.pumpAndSettle();
+
+    // Verify AdminHomeTab automatically switched to Second Floor and shows 1 on 2nd Floor (not Ground Floor)
+    expect(find.text('Active Distress Signals (1 on 2nd Floor)'), findsOneWidget);
+    expect(find.text('Active Distress Signals (1 on Ground Floor)'), findsNothing);
+    expect(find.textContaining('ROOM 218'), findsWidgets);
+
+    // Clean up
+    await DistressSyncService.resolveDistressSignal('202210118');
+    await tester.pumpAndSettle();
+  });
 }

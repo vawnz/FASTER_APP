@@ -22,11 +22,14 @@ class _AdminHomeTabState extends State<AdminHomeTab>
   final TransformationController _transformController = TransformationController();
 
   late List<DistressSignal> _distressSignals;
+  final Set<String> _seenSignalKeys = <String>{};
   DistressSignal? _selectedSignal;
   Offset? _pinnedLocation;
   String? _pinnedRoom;
   bool _showHeatMap = true;
   bool _showBeacons = true;
+
+  String _sigKey(DistressSignal s) => '${s.id}_${s.floor}_${s.roomName}_${s.reqTime}';
 
   @override
   void initState() {
@@ -42,14 +45,71 @@ class _AdminHomeTabState extends State<AdminHomeTab>
     }
 
     _distressSignals = DistressSyncService.activeSignalsNotifier.value;
+    final activeInitial = _distressSignals.where((s) => s.status == DistressStatus.active).toList();
+    for (final s in activeInitial) {
+      _seenSignalKeys.add(_sigKey(s));
+    }
+
+    final focused = DistressSyncService.focusedSignalNotifier.value ??
+        DistressSyncService.newAlertNotifier.value;
+    if (focused != null && focused.status == DistressStatus.active) {
+      _floor = focused.floor;
+      _selectedSignal = focused;
+    } else if (activeInitial.isNotEmpty) {
+      _floor = activeInitial.first.floor;
+    }
+
     DistressSyncService.activeSignalsNotifier.addListener(_onSignalsUpdated);
+    DistressSyncService.newAlertNotifier.addListener(_onNewAlert);
+    DistressSyncService.focusedSignalNotifier.addListener(_onFocusedSignalChanged);
     DistressSyncService.initialize();
+  }
+
+  void _onFocusedSignalChanged() {
+    final focused = DistressSyncService.focusedSignalNotifier.value;
+    if (focused != null && mounted) {
+      setState(() {
+        _floor = focused.floor;
+        _selectedSignal = focused;
+        _pinnedLocation = null;
+        _pinnedRoom = null;
+      });
+    }
+  }
+
+  void _onNewAlert() {
+    final alert = DistressSyncService.newAlertNotifier.value;
+    if (alert != null && mounted) {
+      setState(() {
+        _floor = alert.floor;
+        _selectedSignal = alert;
+        _pinnedLocation = null;
+        _pinnedRoom = null;
+      });
+    }
   }
 
   void _onSignalsUpdated() {
     if (mounted) {
       setState(() {
         _distressSignals = DistressSyncService.activeSignalsNotifier.value;
+        final active = _distressSignals.where((s) => s.status == DistressStatus.active).toList();
+
+        DistressSignal? newestUnseen;
+        for (final s in active) {
+          final key = _sigKey(s);
+          if (!_seenSignalKeys.contains(key)) {
+            _seenSignalKeys.add(key);
+            newestUnseen ??= s;
+          }
+        }
+
+        if (newestUnseen != null) {
+          _floor = newestUnseen.floor;
+          _selectedSignal = newestUnseen;
+        } else if (active.isNotEmpty && active.every((s) => s.floor != _floor)) {
+          _floor = active.first.floor;
+        }
       });
     }
   }
@@ -57,6 +117,8 @@ class _AdminHomeTabState extends State<AdminHomeTab>
   @override
   void dispose() {
     DistressSyncService.activeSignalsNotifier.removeListener(_onSignalsUpdated);
+    DistressSyncService.newAlertNotifier.removeListener(_onNewAlert);
+    DistressSyncService.focusedSignalNotifier.removeListener(_onFocusedSignalChanged);
     _pulseController.dispose();
     _transformController.dispose();
     super.dispose();
@@ -99,6 +161,10 @@ class _AdminHomeTabState extends State<AdminHomeTab>
         backgroundColor: const Color(0xFF1B5E20),
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 3),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: Color(0xFF69F0AE), width: 1.2),
+        ),
         content: Row(
           children: [
             const Icon(Icons.check_circle, color: Colors.white, size: 20),
@@ -106,7 +172,11 @@ class _AdminHomeTabState extends State<AdminHomeTab>
             Expanded(
               child: Text(
                 'FAST TEAM DISPATCHED: Responders en route to ${signal.roomName} for ${signal.studentName}.',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
               ),
             ),
           ],
@@ -129,9 +199,16 @@ class _AdminHomeTabState extends State<AdminHomeTab>
         backgroundColor: const Color(0xFF2E7D32),
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 3),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: Color(0xFF69F0AE), width: 1.2),
+        ),
         content: Text(
           'Incident ${signal.id} at ${signal.roomName} marked as RESOLVED.',
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
     );
@@ -915,22 +992,62 @@ class _AdminHomeTabState extends State<AdminHomeTab>
                           }
                         } else {
                           // Tap on room/area
+                          final area = findAreaAt(_floor, normX, normY);
+                          if (area != null && area.category != CampusAreaCategory.outOfBound) {
+                            setState(() {
+                              _selectedSignal = null;
+                              _pinnedLocation = area.normalizedCenter;
+                              _pinnedRoom = area.name;
+                            });
+                            ScaffoldMessenger.of(context).clearSnackBars();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                backgroundColor: const Color(0xFF282C3E),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  side: BorderSide(color: Colors.white.withValues(alpha: 0.25), width: 1.2),
+                                ),
+                                content: Text(
+                                  'Pinned: ${area.name} (Floor ${_floor == 0 ? "Ground" : "2nd"})',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                duration: const Duration(seconds: 1),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                            return;
+                          }
                           final isOff = _floor == 0
                               ? isGroundOffBoundaries(normX, normY)
                               : isSecondOffBoundaries(normX, normY);
-                          if (isOff) {
+                          if (isOff || (area != null && area.category == CampusAreaCategory.outOfBound)) {
                             ScaffoldMessenger.of(context).clearSnackBars();
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Row(
+                              SnackBar(
+                                content: const Row(
                                   children: [
-                                    Icon(Icons.block, color: Colors.white, size: 18),
+                                    Icon(Icons.block, color: Color(0xFFFF8A80), size: 18),
                                     SizedBox(width: 8),
-                                    Text('Location pinning is disabled in out-of-boundary areas.'),
+                                    Expanded(
+                                      child: Text(
+                                        'Location pinning is disabled in out-of-boundary areas.',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
                                   ],
                                 ),
-                                backgroundColor: Color(0xFF1A1A1A),
-                                duration: Duration(seconds: 2),
+                                backgroundColor: const Color(0xFF282C3E),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  side: const BorderSide(color: Color(0xFFFF5252), width: 1.2),
+                                ),
+                                duration: const Duration(seconds: 2),
                                 behavior: SnackBarBehavior.floating,
                               ),
                             );
@@ -945,7 +1062,18 @@ class _AdminHomeTabState extends State<AdminHomeTab>
                           ScaffoldMessenger.of(context).clearSnackBars();
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Pinned: $room (Floor ${_floor == 0 ? "Ground" : "2nd"})'),
+                              backgroundColor: const Color(0xFF282C3E),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                side: BorderSide(color: Colors.white.withValues(alpha: 0.25), width: 1.2),
+                              ),
+                              content: Text(
+                                'Pinned: $room (Floor ${_floor == 0 ? "Ground" : "2nd"})',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                               duration: const Duration(seconds: 1),
                               behavior: SnackBarBehavior.floating,
                             ),
@@ -1019,16 +1147,20 @@ class _AdminHomeTabState extends State<AdminHomeTab>
                 children: [
                   const Icon(Icons.warning_amber_rounded, color: kGoogleRed, size: 18),
                   const SizedBox(width: 6),
-                  Text(
-                    'Active Distress Signals (${activeOnFloor.length} on ${_floor == 0 ? "Ground" : "2nd"} Floor)',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w800,
-                      color: dark ? Colors.white : const Color(0xFF16181F),
+                  Expanded(
+                    child: Text(
+                      'Active Distress Signals (${activeOnFloor.length} on ${_floor == 0 ? "Ground" : "2nd"} Floor)',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800,
+                        color: dark ? Colors.white : const Color(0xFF16181F),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const Spacer(),
-                  if (_selectedSignal != null)
+                  if (_selectedSignal != null) ...[
+                    const SizedBox(width: 8),
                     GestureDetector(
                       onTap: () => setState(() => _selectedSignal = null),
                       child: Text(
@@ -1040,6 +1172,7 @@ class _AdminHomeTabState extends State<AdminHomeTab>
                         ),
                       ),
                     ),
+                  ],
                 ],
               ),
               const SizedBox(height: 6),

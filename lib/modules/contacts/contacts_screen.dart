@@ -111,8 +111,16 @@ class _ContactCard extends StatelessWidget {
         onTap: () {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              backgroundColor: const Color(0xFFE50914),
-              content: Text('Calling $title ($subtitle)...'),
+              backgroundColor: const Color(0xFFD32F2F),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: const BorderSide(color: Color(0xFFFF8A80), width: 1.2),
+              ),
+              content: Text(
+                'Calling $title ($subtitle)...',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
               duration: const Duration(seconds: 2),
             ),
           );

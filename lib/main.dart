@@ -55,6 +55,20 @@ class CardApp extends StatelessWidget {
               brightness: Brightness.light,
             ),
             scaffoldBackgroundColor: const Color(0xFFF1F4F8),
+            snackBarTheme: SnackBarThemeData(
+              backgroundColor: const Color(0xFF1E2130),
+              contentTextStyle: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 13.5,
+              ),
+              actionTextColor: const Color(0xFFFF8A80),
+              behavior: SnackBarBehavior.floating,
+              elevation: 6,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
           ),
           darkTheme: ThemeData(
             useMaterial3: true,
@@ -65,6 +79,21 @@ class CardApp extends StatelessWidget {
               brightness: Brightness.dark,
             ),
             scaffoldBackgroundColor: const Color(0xFF0A0B0E),
+            snackBarTheme: SnackBarThemeData(
+              backgroundColor: const Color(0xFF282C3E),
+              contentTextStyle: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 13.5,
+              ),
+              actionTextColor: const Color(0xFFFF8A80),
+              behavior: SnackBarBehavior.floating,
+              elevation: 8,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.25), width: 1.2),
+              ),
+            ),
           ),
           home: const AuthSplashScreen(),
         );
