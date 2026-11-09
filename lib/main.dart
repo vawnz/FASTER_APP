@@ -3,6 +3,7 @@ import 'supabase_service.dart';
 import 'core/constants.dart';
 import 'modules/auth/login_screen.dart';
 import 'modules/home/home_screen.dart';
+import 'modules/admin/services/distress_sync_service.dart';
 
 // Calling Modules
 export 'core/constants.dart';
@@ -29,6 +30,7 @@ export 'modules/admin/services/distress_sync_service.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SupabaseService.initialize();
+  await DistressSyncService.initialize();
   runApp(const CardApp());
 }
 

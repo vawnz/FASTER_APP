@@ -112,6 +112,7 @@ class DistressSyncService {
         emergencyType: emergencyType,
         section: section,
       );
+      await refresh();
     } catch (e) {
       debugPrint('Supabase insert warning: $e');
     }
@@ -143,11 +144,17 @@ class DistressSyncService {
       final activeSignals = await SupabaseService.fetchActiveDistressSignals();
 
       // Exclude any distress signals that were resolved locally or in tombstone
-      final activeFiltered = activeSignals.where((s) =>
-          !_resolvedStudentIds.contains(s.studentId) &&
-          !_resolvedSignalIds.contains(s.id) &&
-          s.status != DistressStatus.resolved
-      ).toList();
+      final activeFiltered = <DistressSignal>[];
+      for (final s in activeSignals) {
+        if (_resolvedSignalIds.contains(s.id) || s.status == DistressStatus.resolved) {
+          continue;
+        }
+        // If a student who was previously resolved sends a new active distress signal, lift the tombstone
+        if (_resolvedStudentIds.contains(s.studentId)) {
+          _resolvedStudentIds.remove(s.studentId);
+        }
+        activeFiltered.add(s);
+      }
 
       // Check for any newly incoming distress signal not seen before
       for (final sig in activeFiltered) {
@@ -165,7 +172,6 @@ class DistressSyncService {
         ...existingActive.where((s) =>
             !loadedIds.contains(s.id) &&
             s.status != DistressStatus.resolved &&
-            !_resolvedStudentIds.contains(s.studentId) &&
             !_resolvedSignalIds.contains(s.id)),
       ];
 

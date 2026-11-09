@@ -51,6 +51,7 @@ class _MapHomePageState extends State<MapHomePage> with SingleTickerProviderStat
     }
     _activeSignals = DistressSyncService.activeSignalsNotifier.value;
     DistressSyncService.activeSignalsNotifier.addListener(_onSignalsUpdated);
+    DistressSyncService.initialize();
   }
 
   void _onSignalsUpdated() {
@@ -582,26 +583,6 @@ class _MapHomePageState extends State<MapHomePage> with SingleTickerProviderStat
                               color: isSelected
                                   ? (dark ? Colors.white : const Color(0xFF16181F))
                                   : (dark ? Colors.white70 : Colors.black87),
-                            ),
-                          ),
-                        ),
-                        // Dimension Pill
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: area.categoryColor.withValues(alpha: dark ? 0.20 : 0.12),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                              color: area.categoryColor.withValues(alpha: 0.45),
-                              width: 0.8,
-                            ),
-                          ),
-                          child: Text(
-                            area.dimensionLabel,
-                            style: TextStyle(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.bold,
-                              color: area.categoryColor,
                             ),
                           ),
                         ),

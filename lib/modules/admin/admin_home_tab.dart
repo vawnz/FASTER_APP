@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/constants.dart';
 import '../map/ground_floor.dart';
 import '../map/second_floor.dart';
+import '../map/campus_map_data.dart';
 import 'admin_heat_map_painter.dart';
 import 'models/distress_signal.dart';
 import 'services/distress_sync_service.dart';
@@ -77,6 +78,15 @@ class _AdminHomeTabState extends State<AdminHomeTab>
       _selectedSignal = signal;
     });
     _showIncidentSheet(signal);
+  }
+
+  void _selectCluster(LocationDistressCluster cluster) {
+    setState(() {
+      _selectedSignal = cluster.signals.first as DistressSignal;
+      _pinnedLocation = null;
+      _pinnedRoom = null;
+    });
+    _showClusterIncidentSheet(cluster);
   }
 
   void _dispatchTeam(DistressSignal signal) {
@@ -307,6 +317,299 @@ class _AdminHomeTabState extends State<AdminHomeTab>
                             side: const BorderSide(color: Color(0xFF2E7D32), width: 1.5),
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showClusterIncidentSheet(LocationDistressCluster cluster) {
+    final dark = isGlassDark(context);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (modalCtx) {
+        return ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.82,
+              ),
+              color: dark ? const Color(0xF2141622) : Colors.white.withValues(alpha: 0.95),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              child: SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Header row with cluster badge
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: cluster.pulseColor.withValues(alpha: 0.18),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.crisis_alert, color: cluster.pulseColor, size: 24),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                cluster.locationName,
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w900,
+                                  color: dark ? Colors.white : const Color(0xFF16181F),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${_floor == 0 ? "Ground Floor" : "Second Floor"} • ${cluster.count} Active Distress Responses',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: dark ? Colors.white70 : Colors.black54,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: cluster.pulseColor.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: cluster.pulseColor.withValues(alpha: 0.7)),
+                          ),
+                          child: Text(
+                            '${cluster.count} RESPONSES',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: cluster.pulseColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Divider(color: dark ? Colors.white12 : Colors.black12, height: 1),
+                    const SizedBox(height: 10),
+
+                    Text(
+                      'Students In Distress (${cluster.count}):',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.bold,
+                        color: dark ? Colors.white70 : Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Scrollable List of Students in this room/area
+                    Flexible(
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: cluster.signals.length,
+                        separatorBuilder: (context, index) => const SizedBox(height: 10),
+                        itemBuilder: (context, idx) {
+                          final sig = cluster.signals[idx] as DistressSignal;
+                          return Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: dark ? const Color(0xFF1E2130) : const Color(0xFFF3F4F8),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: dark
+                                    ? Colors.white.withValues(alpha: 0.08)
+                                    : Colors.black.withValues(alpha: 0.06),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        sig.studentName,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: dark ? Colors.white : const Color(0xFF16181F),
+                                        ),
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                                      decoration: BoxDecoration(
+                                        color: sig.urgencyColor.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        sig.emergencyType,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          color: sig.urgencyColor,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    Icon(Icons.badge, size: 14, color: dark ? Colors.white54 : Colors.black54),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'ID: ${sig.studentId}',
+                                      style: TextStyle(fontSize: 11, color: dark ? Colors.white60 : Colors.black54),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Icon(Icons.school, size: 14, color: dark ? Colors.white54 : Colors.black54),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        '${sig.program} • ${sig.yearLevel}',
+                                        style: TextStyle(fontSize: 11, color: dark ? Colors.white60 : Colors.black54),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Icon(Icons.phone, size: 14, color: dark ? Colors.white54 : Colors.black54),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      sig.phoneNumber,
+                                      style: TextStyle(fontSize: 11, color: dark ? Colors.white60 : Colors.black54),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Icon(Icons.access_time, size: 14, color: dark ? Colors.white54 : Colors.black54),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      sig.reqTime,
+                                      style: TextStyle(fontSize: 11, color: dark ? Colors.white60 : Colors.black54),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    OutlinedButton.icon(
+                                      onPressed: () {
+                                        Navigator.pop(modalCtx);
+                                        _dispatchTeam(sig);
+                                      },
+                                      icon: const Icon(Icons.flash_on, size: 14),
+                                      label: const Text('DISPATCH', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: kGoogleRed,
+                                        side: const BorderSide(color: kGoogleRed, width: 1.2),
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    ElevatedButton.icon(
+                                      onPressed: () {
+                                        Navigator.pop(modalCtx);
+                                        _resolveSignal(sig);
+                                      },
+                                      icon: const Icon(Icons.check, size: 14),
+                                      label: const Text('RESOLVE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF2E7D32),
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Batch Actions: Dispatch All & Resolve All
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.pop(modalCtx);
+                              for (final s in cluster.signals) {
+                                _dispatchTeam(s as DistressSignal);
+                              }
+                            },
+                            icon: const Icon(Icons.flash_on, size: 16),
+                            label: Text(
+                              'DISPATCH ALL (${cluster.count})',
+                              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: kGoogleRed,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(modalCtx);
+                            for (final s in cluster.signals) {
+                              _resolveSignal(s as DistressSignal);
+                            }
+                          },
+                          icon: const Icon(Icons.check_circle_outline, size: 16),
+                          label: const Text(
+                            'RESOLVE ALL',
+                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF2E7D32),
+                            side: const BorderSide(color: Color(0xFF2E7D32), width: 1.5),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
                       ],
@@ -573,20 +876,43 @@ class _AdminHomeTabState extends State<AdminHomeTab>
                         final normX = details.localPosition.dx / constraints.maxWidth;
                         final normY = details.localPosition.dy / constraints.maxHeight;
 
-                        // Check if tapped near an existing distress signal beacon
-                        final signalsOnFloor = _distressSignals.where((s) => s.floor == _floor).toList();
-                        DistressSignal? tappedSignal;
-                        for (final sig in signalsOnFloor) {
-                          final dx = (sig.position.dx - normX).abs();
-                          final dy = (sig.position.dy - normY).abs();
-                          if (dx < 0.045 && dy < 0.045) {
-                            tappedSignal = sig;
+                        // Check if tapped near an existing distress signal beacon or cluster
+                        final signalsOnFloor = _distressSignals
+                            .where((s) => s.floor == _floor && s.status != DistressStatus.resolved)
+                            .toList();
+                        final clusters = computeLocationClusters(signalsOnFloor, _floor);
+
+                        LocationDistressCluster? tappedCluster;
+                        for (final cluster in clusters) {
+                          final dx = (cluster.position.dx - normX).abs();
+                          final dy = (cluster.position.dy - normY).abs();
+                          if (dx < 0.055 && dy < 0.055) {
+                            tappedCluster = cluster;
                             break;
                           }
                         }
 
-                        if (tappedSignal != null) {
-                          _selectSignal(tappedSignal);
+                        // Also check if tap is inside the area of any active distress cluster
+                        if (tappedCluster == null) {
+                          final area = findAreaAt(_floor, normX, normY);
+                          if (area != null) {
+                            for (final cluster in clusters) {
+                              if (cluster.locationName.toUpperCase() == area.name.toUpperCase() ||
+                                  cluster.locationName.toUpperCase().contains(area.name.toUpperCase()) ||
+                                  area.name.toUpperCase().contains(cluster.locationName.toUpperCase())) {
+                                tappedCluster = cluster;
+                                break;
+                              }
+                            }
+                          }
+                        }
+
+                        if (tappedCluster != null) {
+                          if (tappedCluster.count == 1) {
+                            _selectSignal(tappedCluster.signals.first as DistressSignal);
+                          } else {
+                            _selectCluster(tappedCluster);
+                          }
                         } else {
                           // Tap on room/area
                           final isOff = _floor == 0

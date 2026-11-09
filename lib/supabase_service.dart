@@ -355,19 +355,48 @@ class SupabaseService {
     final cli = client;
     if (isConfigured && cli != null) {
       final int? idNum = int.tryParse(studentId.replaceAll(RegExp(r'\D'), ''));
+      final int safeId = idNum ?? 202601234;
+
+      // 1. Ensure student exists in fast_stud_info to prevent foreign key error 23503
       try {
-        if (idNum != null) {
-          await cli.from('fast_stud_info').update({'is_distress': true}).eq('stud_id', idNum);
+        final existing = await cli
+            .from('fast_stud_info')
+            .select('stud_id')
+            .eq('stud_id', safeId)
+            .maybeSingle();
+
+        if (existing == null) {
+          final names = studentName.trim().split(' ');
+          final fn = names.isNotEmpty ? names.first : 'Student';
+          final ln = names.length > 1 ? names.sublist(1).join(' ') : 'FASTER';
+          await cli.from('fast_stud_info').insert({
+            'stud_id': safeId,
+            'stud_fn': fn.length > 30 ? fn.substring(0, 30) : fn,
+            'stud_mi': 'N/A',
+            'stud_ln': ln.length > 30 ? ln.substring(0, 30) : ln,
+            'stud_user': 'user_$safeId',
+            'stud_password': 'password123',
+            'stud_program': programToCode(program),
+            'stud_yrlevel': yearLevel,
+            'stud_section': sectionToDb(section),
+            'stud_phoneno': phoneNumber.length > 30 ? phoneNumber.substring(0, 30) : phoneNumber,
+            'user_role': 'STUDENT',
+            'is_distress': true,
+          });
         } else {
-          await cli.from('fast_stud_info').update({'is_distress': true}).eq('stud_user', studentId);
+          await cli.from('fast_stud_info').update({
+            'is_distress': true,
+            'stud_status': 'ACTIVE DISTRESS',
+          }).eq('stud_id', safeId);
         }
       } catch (e) {
-        debugPrint('[FASTER] Notice updating fast_stud_info: $e');
+        debugPrint('[FASTER] Notice ensuring fast_stud_info: $e');
       }
 
+      // 2. Insert record into user_request
       try {
         await cli.from('user_request').insert({
-          'stud_id': ?idNum,
+          'stud_id': safeId,
           'stud_name': studentName.length > 90 ? studentName.substring(0, 90) : studentName,
           'stud_program': programToCode(program),
         });
@@ -375,27 +404,38 @@ class SupabaseService {
         debugPrint('[FASTER] Notice writing to user_request: $e');
       }
 
-      try {
-        final meta = jsonEncode({
-          'floor': floor,
-          'room': roomName,
-          'x': posX,
-          'y': posY,
-          'type': emergencyType,
-          'phone': phoneNumber,
-        });
+      // 3. Upsert into fast_stud_record (handles unique constraint on stud_id)
+      final meta = jsonEncode({
+        'floor': floor,
+        'room': roomName,
+        'x': posX,
+        'y': posY,
+        'type': emergencyType,
+        'phone': phoneNumber,
+      });
 
-        await cli.from('fast_stud_record').insert({
-          'stud_id': idNum ?? int.tryParse(studentId) ?? 202601234,
-          'stud_name': studentName.length > 90 ? studentName.substring(0, 90) : studentName,
-          'stud_program': programToCode(program),
-          'stud_yrlevel': yearLevel,
-          'stud_section': sectionToDb(section),
-          'user_role': meta,
-          'stud_status': 'ACTIVE DISTRESS',
-        });
+      final recordPayload = {
+        'stud_id': safeId,
+        'stud_name': studentName.length > 90 ? studentName.substring(0, 90) : studentName,
+        'stud_program': programToCode(program),
+        'stud_yrlevel': yearLevel,
+        'stud_section': sectionToDb(section),
+        'user_role': meta,
+        'stud_status': 'ACTIVE DISTRESS',
+        'room_name': roomName,
+        'floor': floor,
+        'stud_reqtime': DateTime.now().toIso8601String(),
+      };
+
+      try {
+        await cli.from('fast_stud_record').upsert(recordPayload, onConflict: 'stud_id');
       } catch (e) {
-        debugPrint('[FASTER] Notice writing to fast_stud_record: $e');
+        debugPrint('[FASTER] Upsert notice, falling back to direct update: $e');
+        try {
+          await cli.from('fast_stud_record').update(recordPayload).eq('stud_id', safeId);
+        } catch (uErr) {
+          debugPrint('[FASTER] Direct update fast_stud_record notice: $uErr');
+        }
       }
     }
 

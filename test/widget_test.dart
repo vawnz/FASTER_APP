@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:faster/main.dart';
 import 'package:faster/supabase_service.dart';
+import 'package:faster/modules/map/campus_map_data.dart';
 
 void main() {
   testWidgets('Splash -> Login -> Home -> Profile -> Sign Out flow',
@@ -680,5 +681,81 @@ void main() {
     // Verify returned to Login Screen
     expect(find.byType(AuthSplashScreen), findsOneWidget);
     expect(find.text('LOG IN'), findsNWidgets(2));
+  });
+
+  test('Multi-response clustering logic and callout response count verification', () {
+    // 1. Single response in a room
+    final singleSignal = [
+      DistressSignal(
+        id: 'DS-1',
+        studentId: '202600001',
+        studentName: 'Student One',
+        program: 'BSCS',
+        yearLevel: '1st Year',
+        phoneNumber: '09123456789',
+        floor: 0,
+        roomName: 'LOBBY',
+        position: const Offset(0.5, 0.5),
+        emergencyType: 'Medical',
+        urgency: DistressUrgency.critical,
+        status: DistressStatus.active,
+        reqTime: '10:00',
+      ),
+    ];
+    final clusterSingle = computeLocationClusters(singleSignal, 0);
+    expect(clusterSingle.length, 1);
+    expect(clusterSingle.first.count, 1);
+    expect(clusterSingle.first.pulseColor, const Color(0xFF00BF63)); // Green for 1
+    expect((clusterSingle.first.signals.first as DistressSignal).studentName, 'Student One');
+
+    // 2. Multiple simultaneous responses in the same room (2 responses)
+    final twoSignals = [
+      ...singleSignal,
+      DistressSignal(
+        id: 'DS-2',
+        studentId: '202600002',
+        studentName: 'Student Two',
+        program: 'BSIT',
+        yearLevel: '2nd Year',
+        phoneNumber: '09987654321',
+        floor: 0,
+        roomName: 'LOBBY',
+        position: const Offset(0.52, 0.51),
+        emergencyType: 'Fire',
+        urgency: DistressUrgency.critical,
+        status: DistressStatus.active,
+        reqTime: '10:02',
+      ),
+    ];
+    final clusterTwo = computeLocationClusters(twoSignals, 0);
+    expect(clusterTwo.length, 1);
+    expect(clusterTwo.first.count, 2);
+    expect(clusterTwo.first.pulseColor, const Color(0xFFFF715F)); // Orange for 2
+    final names = clusterTwo.first.signals.map((s) => (s as DistressSignal).studentName).toList();
+    expect(names, containsAll(['Student One', 'Student Two']));
+
+    // 3. Three or more simultaneous responses in the same room (3+ responses)
+    final threeSignals = [
+      ...twoSignals,
+      DistressSignal(
+        id: 'DS-3',
+        studentId: '202600003',
+        studentName: 'Student Three',
+        program: 'BSCS',
+        yearLevel: '3rd Year',
+        phoneNumber: '09111222333',
+        floor: 0,
+        roomName: 'LOBBY',
+        position: const Offset(0.51, 0.49),
+        emergencyType: 'Earthquake',
+        urgency: DistressUrgency.critical,
+        status: DistressStatus.active,
+        reqTime: '10:03',
+      ),
+    ];
+    final clusterThree = computeLocationClusters(threeSignals, 0);
+    expect(clusterThree.length, 1);
+    expect(clusterThree.first.count, 3);
+    expect(clusterThree.first.pulseColor, const Color(0xFFE50914)); // Red for 3+
   });
 }
