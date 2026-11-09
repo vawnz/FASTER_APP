@@ -33,10 +33,10 @@ class ContactsPage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 20),
-        const _ContactCard(title: 'Campus Emergency', subtitle: 'Emergency Response Team', icon: Icons.local_police),
-        const _ContactCard(title: 'Campus Security', subtitle: 'Security Office', icon: Icons.security),
-        const _ContactCard(title: 'Medical Assistance', subtitle: 'Campus Clinic', icon: Icons.local_hospital),
-        const _ContactCard(title: 'Fire Emergency', subtitle: 'Fire Response', icon: Icons.local_fire_department),
+        const _ContactCard(title: 'OSAS Office', subtitle: 'Campus Admission Office', icon: Icons.local_police),
+        const _ContactCard(title: 'Campus Security', subtitle: 'Security', icon: Icons.security),
+        const _ContactCard(title: 'FAST Office', subtitle: 'Campus Clinic', icon: Icons.local_hospital),
+        const _ContactCard(title: 'Cavite City Fire Station', subtitle: '+63 908 950 8557', icon: Icons.local_fire_department),
       ],
     );
   }
