@@ -339,6 +339,12 @@ void main() {
     // 1. Verify center-pin button is completely removed
     expect(find.byIcon(Icons.my_location), findsNothing);
 
+    // Verify PIN LOCATION box, radio buttons, and px badges are completely removed
+    expect(find.text('PIN LOCATION'), findsNothing);
+    expect(find.text('ROOMS'), findsNothing);
+    expect(find.text('INDOOR'), findsNothing);
+    expect(find.text('OUTDOOR'), findsNothing);
+
     // 2. Verify modernized search button exists on the upper right
     final searchBtn = find.text('Search Location');
     expect(searchBtn, findsOneWidget);
