@@ -29,7 +29,7 @@ class DistressSyncService {
   static String _signalSignature(DistressSignal s) =>
       '${s.studentId}_${s.floor}_${s.roomName}_${s.reqTime}';
 
-  /// Initialize real-time synchronization and polling
+  /// real-time polling
   static Future<void> initialize() async {
     if (_isInitialized) return;
     _isInitialized = true;
@@ -135,7 +135,7 @@ class DistressSyncService {
     return true;
   }
 
-  /// Triggers haptic, sound, and floating notification on admin screen
+  /// Triggers notif for admin viewpoint
   static void triggerAlertNotification(DistressSignal signal) {
     try {
       HapticFeedback.heavyImpact();
@@ -165,13 +165,12 @@ class DistressSyncService {
           if (s.roomName != 'Campus Grounds') s.studentId: s,
       };
 
-      // Exclude any distress signals that were resolved locally or in tombstone
+      // Filtering locally stored resolved signals
       final activeFiltered = <DistressSignal>[];
       for (final rawSig in activeSignals) {
         if (rawSig.status == DistressStatus.resolved) {
           continue;
         }
-        // Enrich with local floor/room if DB record temporarily had default Campus Grounds
         DistressSignal s = rawSig;
         if (s.roomName == 'Campus Grounds' && localActiveByStudent.containsKey(s.studentId)) {
           final local = localActiveByStudent[s.studentId]!;
@@ -198,7 +197,7 @@ class DistressSyncService {
           if (resolvedTime != null && resolvedTime == s.reqTime) {
             continue;
           }
-          // Student sent a brand-new distress signal with a new timestamp; lift tombstones
+          // Multiple signals function for a user
           _resolvedStudentIds.remove(s.studentId);
           _resolvedStudentReqTimes.remove(s.studentId);
           _resolvedSignalIds.remove(s.id);
@@ -209,7 +208,7 @@ class DistressSyncService {
         activeFiltered.add(s);
       }
 
-      // Check for any newly incoming distress signal not seen before
+      // Check for any newly incoming distress signal
       for (final sig in activeFiltered) {
         final sigKey = _signalSignature(sig);
         if (!_knownSignalIds.contains(sig.id) && !_knownSignalIds.contains(sigKey)) {
@@ -222,7 +221,7 @@ class DistressSyncService {
         }
       }
 
-      // Merge with any in-memory active signals not yet resolved
+      // Multiple signals from same user, overrrides the previous
       final Set<String> loadedIds = activeFiltered.map((s) => s.id).toSet();
       final Set<String> loadedActiveStudentIds = activeFiltered.map((s) => s.studentId).toSet();
       final List<DistressSignal> merged = [
@@ -241,7 +240,7 @@ class DistressSyncService {
       final Set<String> loadedHistIds = records.map((r) => r.id).toSet();
       final Set<String> loadedStudentIds = records.map((r) => r.studentId).toSet();
 
-      // Preserve local roomName and floor if DB record only had default room name
+      // Preserve local roomName and floor
       final Map<String, EmergencyHistoryRecord> localInfo = {
         for (final h in existingHistory)
           if (h.roomName != 'Campus Grounds') h.studentId: h
@@ -303,7 +302,7 @@ class DistressSyncService {
             !_resolvedSignalIds.contains(s.id))
         .toList();
 
-    // Dismiss active banner if it corresponds to this resolved emergency
+    // Dismiss all alerts sent by single user or specific signalId
     if (newAlertNotifier.value != null) {
       final currentAlert = newAlertNotifier.value!;
       if (currentAlert.studentId == studentId ||
@@ -314,7 +313,7 @@ class DistressSyncService {
       }
     }
 
-    // Immediately update in-memory history status to RESOLVED
+    // Immediately update history status to RESOLVED
     historyRecordsNotifier.value = historyRecordsNotifier.value.map((rec) {
       if (rec.studentId == studentId ||
           rec.studentId.contains(studentId) ||
@@ -395,7 +394,7 @@ class DistressSyncService {
     }
   }
 
-  /// Background polling timer (every 3 seconds) for guaranteed synchronization
+  /// Background polling timer (every 3 seconds)
   static void _startPollingTimer() {
     _pollingTimer?.cancel();
     _pollingTimer = Timer.periodic(const Duration(seconds: 3), (_) {

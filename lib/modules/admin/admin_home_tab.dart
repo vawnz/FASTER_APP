@@ -171,7 +171,7 @@ class _AdminHomeTabState extends State<AdminHomeTab>
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'FAST TEAM DISPATCHED: Responders en route to ${signal.roomName} for ${signal.studentName}.',
+                'FAST TEAM DISPATCHED: Responders on the way to ${signal.roomName} for ${signal.studentName}.',
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -953,7 +953,7 @@ class _AdminHomeTabState extends State<AdminHomeTab>
                         final normX = details.localPosition.dx / constraints.maxWidth;
                         final normY = details.localPosition.dy / constraints.maxHeight;
 
-                        // Check if tapped near an existing distress signal beacon or cluster
+                        // Check if tapped near an existing distress signal or cluster
                         final signalsOnFloor = _distressSignals
                             .where((s) => s.floor == _floor && s.status != DistressStatus.resolved)
                             .toList();
@@ -1121,7 +1121,7 @@ class _AdminHomeTabState extends State<AdminHomeTab>
           ),
         ),
 
-        // Live Incident Counter
+        // Live Distress Counter
         Container(
           margin: const EdgeInsets.fromLTRB(12, 6, 12, 8),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

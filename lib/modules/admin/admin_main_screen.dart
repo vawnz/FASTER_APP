@@ -140,7 +140,7 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
                 children: [
                   pages[_selectedTab],
 
-                  // LIVE NOTIFICATION OVERLAY (Directly notifies admin's phone with FASTER app open)
+                  // LIVE NOTIFICATION OVERLAY
                   if (_activeAlertBanner != null)
                     Positioned(
                       top: 10,

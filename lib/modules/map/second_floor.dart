@@ -207,13 +207,13 @@ class SecondFloorPainter extends BaseFloorPainter {
       );
     }
 
-    // 2. Location Pinning function ONLY (Pathing temporarily removed per user request)
+    // 2. Location Pinning function
     if (selectedLocation != null && !isSecondOffBoundaries(selectedLocation!.dx, selectedLocation!.dy)) {
       drawPin(canvas, Offset(selectedLocation!.dx * size.width, selectedLocation!.dy * size.height));
     }
   }
 
-  // Emergency Response Route (Preserved for when emergency routing is re-enabled):
+ 
   void drawSecondFloorEmergencyRoute(Canvas canvas, Size size, Offset targetNorm) {
     if (isSecondOffBoundaries(targetNorm.dx, targetNorm.dy)) {
       return;
@@ -223,7 +223,7 @@ class SecondFloorPainter extends BaseFloorPainter {
 
     final Offset target = Offset(targetNorm.dx * w, targetNorm.dy * h);
 
-    // Grid Spines
+    // Grid 
     const double vertHallwayXNorm = 0.1543;
     const double horizHallwayYNorm = 0.6003;
     final double vertHallwayX = w * vertHallwayXNorm;

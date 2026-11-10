@@ -12,13 +12,13 @@ class DistressSignal {
   final String program;
   final String yearLevel;
   final String phoneNumber;
-  final int floor; // 0: Ground Floor, 1: Second Floor
+  final int floor;
   final String roomName;
-  final Offset position; // Normalized coordinates (0.0 to 1.0)
+  final Offset position; 
   final String emergencyType;
   final DistressUrgency urgency;
   DistressStatus status;
-  final String reqTime; // user_reqtime formatted string
+  final String reqTime;
   final DateTime timestamp;
 
   DistressSignal({
@@ -258,10 +258,10 @@ bool _isSecondFloorRoomName(String room) {
       upper.contains('BOTTOM-RIGHT');
 }
 
-/// Heat Map via simultaneous distress signals per location:
-/// - 1 signal: Green pulse (#00BF63)
-/// - 2 signals: Orange pulse (#FF715F)
-/// - 3 or more signals: Red pulse (#E50914)
+/// Heat Map
+/// - 1 signal: Green
+/// - 2 signals: Orange
+/// - 3 or more signals: Red
 List<HeatPoint> computeDynamicHeatPoints(List<DistressSignal> signals, int floor) {
   final clusters = computeLocationClusters(signals, floor);
 

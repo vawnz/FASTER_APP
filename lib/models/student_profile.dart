@@ -80,7 +80,7 @@ const List<String> kSections = [
   'Other',
 ];
 
-/// Default initial profile for student session before authentication.
+/// Default initial profile
 const StudentProfile kDefaultStudentProfile = StudentProfile(
   studentId: '202601234',
   firstName: 'Juan',
@@ -94,7 +94,5 @@ const StudentProfile kDefaultStudentProfile = StudentProfile(
   userRole: 'STUDENT',
 );
 
-/// Active logged-in student profile session.
-/// This global session variable holds the authenticated user's profile across screens
-/// and is dynamically overwritten when a student or admin logs in or registers.
+//Global variable placeholder
 StudentProfile currentStudent = kDefaultStudentProfile;
