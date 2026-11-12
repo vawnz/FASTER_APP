@@ -6,11 +6,11 @@ FASTER is an emergency SOS mobile and desktop application developed for the camp
 
 ## Features
 
-- **Instant SOS Dispatch**: Immediate distress signal broadcast with room and floor localization.
-- **Interactive Floor Blueprint**: Hit-testing interactive map for campus facilities.
-- **HQ Admin Monitoring**: Real-time distress queue, casualty details, and emergency history logging.
-- **Cross-Platform Resilience**: Works seamlessly across macOS, Windows, Android, and iOS with built-in offline resiliency.
-- **Dual Role Access**: Dedicated portals for Students and FAST Medical Officers.
+- **Instant Signal Delivery**: Immediate distress signal sent with room and floor localization.
+- **Interactive Map Layout**: Hit-testing interactive map for campus facilities.
+- **Live-FAST Monitoring**: Real-time distress queue, details, and emergency history logging.
+- **Cross-Platform**: Works seamlessly across macOS, Windows, Android, and iOS.
+- **Dual Viewpoint**: Dedicated portals for Students and FAST Medical Officers.
 
 ---
 
