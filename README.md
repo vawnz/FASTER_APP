@@ -1,6 +1,6 @@
 # FASTER (First-Aid Service Team Emergency Response)
 
-FASTER is an emergency SOS mobile and desktop application developed for the campus community of Cavite State University - Cavite City Campus (CvSU-CCC). The application facilitates immediate, geolocation-targeted communication between students/faculty in distress and the campus FAST medical/emergency response officers.
+FASTER (First-Aid Service Team Emergency Response) Application is an SOS Application exclusive for stakeholders within the vicinity of CvSU-CCC--where contact with the campus' medical team is certain and immediate.
 
 ---
 
